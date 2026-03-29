@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "podcast-proxy"
+version = "0.1.0"
+description = "Small self-hosted podcast proxy that transcodes episodes and republishes an RSS feed."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "feedparser>=6.0.11",
+  "Pillow>=10.4.0",
+  "requests>=2.32.0",
+]
+
+[project.scripts]
+podcast-proxy = "podcast_proxy.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

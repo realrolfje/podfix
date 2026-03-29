@@ -1,0 +1,28 @@
+upstream_feed_url = "https://omny.fm/shows/dai-carter-missie-mentale-kracht/playlists/podcast.rss"
+base_url = "http://localhost:8080"
+output_dir = "./output"
+cache_artwork = false
+badge_artwork = true
+max_episodes = 5
+podcast_mode = "auto"
+
+[http]
+user_agent = "podcast-proxy/0.1"
+timeout_seconds = 30
+retries = 2
+
+[ffmpeg]
+binary = "ffmpeg"
+highpass_hz = 300
+lowpass_hz = 3400
+compressor_threshold_db = -50
+compressor_ratio = 10
+attack_ms = 20
+release_ms = 250
+sample_rate_hz = 22050
+bitrate_kbps = 64
+channels = 2
+normalize = true
+loudness_target_lufs = -16
+true_peak_db = -1.5
+loudness_range_target = 11

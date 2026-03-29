@@ -1,0 +1,8 @@
+.DS_Store
+.venv/
+__pycache__/
+*.pyc
+
+output/
+output-one/
+src/podcast_proxy.egg-info/
