@@ -48,23 +48,24 @@ Serve `output/data/public/` with any static web server, or use the built-in conv
 ## Install
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv --system-site-packages
 source .venv/bin/activate
-pip install -e .
 ```
 
-After `pip install -e .`, `pip` creates a console command named `podcast-proxy` from the entrypoint declared in [pyproject.toml](/Users/rolf/temp/podfix/pyproject.toml). That command is installed into your Python environment, not as a file in the project root.
+The project is typically run directly from the repo using the local virtual environment Python plus `PYTHONPATH=src`. This avoids depending on a globally installed `podcast-proxy` binary.
 
-You can inspect where the command lives with:
+Verify the local environment can run the CLI:
 
 ```bash
-which podcast-proxy
+PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli --help
 ```
 
-If you do not want to rely on the installed console script, you can run the CLI directly from the repo:
+For scheduler use, the repository includes [run-sync.sh](/Users/rolf/temp/podfix/run-sync.sh), which uses the local `.venv` and `config.toml`.
+
+If you still have an older globally installed `podcast-proxy` command and want to remove it:
 
 ```bash
-PYTHONPATH=src python3 -m podcast_proxy.cli sync --config config.toml
+/Library/Frameworks/Python.framework/Versions/3.11/bin/python3.11 -m pip uninstall podcast-proxy
 ```
 
 ## Configuration
@@ -130,13 +131,13 @@ Audio tuning:
 Sync new items:
 
 ```bash
-podcast-proxy sync --config config.toml
+PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli sync --config config.toml
 ```
 
 Force a clean rebuild:
 
 ```bash
-podcast-proxy rebuild --config config.toml
+PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild --config config.toml
 ```
 
 `rebuild` force-overwrites existing public episode files and re-runs `ffmpeg`, so updated audio settings take effect even when filenames stay the same.
@@ -144,7 +145,13 @@ podcast-proxy rebuild --config config.toml
 Serve the generated feed locally:
 
 ```bash
-podcast-proxy serve --config config.toml --port 8080
+PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli serve --config config.toml --port 8080
+```
+
+For scheduled syncs, use:
+
+```bash
+/Users/rolf/temp/podfix/run-sync.sh
 ```
 
 Then open:
