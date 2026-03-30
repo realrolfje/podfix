@@ -155,7 +155,7 @@ def write_library_index(app_config: AppConfig, podcasts: list[dict[str, Any]]) -
   <main>
     <section class="hero hero-library">
       <div>
-        <h1>PodcPodfix Library</h1>
+        <h1>Podfix Library</h1>
         <p class="lede">Below is a list of podcasts which are post-processed so that speech is 
         clear and of equal level between speakers as much as possible. The bitrate is also reduced
         to a more storage- and network friendly size. Click on "Open show page" 
