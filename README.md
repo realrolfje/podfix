@@ -1,6 +1,6 @@
-# podcast-proxy
+# podfix
 
-`podcast-proxy` is a small self-hosted Python tool that mirrors one or more upstream podcast feeds, transcodes episode media with `ffmpeg`, and publishes new RSS feeds that point at the processed MP3 files.
+`podfix` is a small self-hosted Python tool that mirrors one or more upstream podcast feeds, transcodes episode media with `ffmpeg`, and publishes new RSS feeds that point at the processed MP3 files.
 
 Current behavior:
 
@@ -72,7 +72,7 @@ PYTHONPATH=src python3 -m podcast_proxy.cli sync --config config.toml
 Copy [config.sample.toml](/Users/rolf/temp/podfix/config.sample.toml) to `config.toml` and adjust:
 
 ```toml
-base_url = "https://podcast-proxy.example.com"
+base_url = "https://podfix.example.com"
 output_dir = "./output"
 keep_original_downloads = false
 cache_artwork = false
