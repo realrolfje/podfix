@@ -151,9 +151,8 @@ def write_library_index(app_config: AppConfig, podcasts: list[dict[str, Any]]) -
   <main>
     <section class="hero hero-library">
       <div>
-        <p class="eyebrow">Self-hosted</p>
         <h1>Podcast Library</h1>
-        <p class="lede">All generated podcast feeds are listed here. Open a show page for details, or subscribe directly with its <code>feed.xml</code> URL.</p>
+        <p class="lede">Below is a list of podcasts which are post-processed so that speech is clear and of equal level between speakers as much as possible. Click on "Open show page" for details per show, or use the "Copy RSS Link" to add the link to your favourite podcast app. Please remember to support the autors of the podcasts below by subscribing to their affeliate programs (Podimo, Patreon, or socials).</p>
       </div>
     </section>
     <section>
