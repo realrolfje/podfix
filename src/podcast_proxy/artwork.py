@@ -14,9 +14,8 @@ BADGE_TEXT = "COMPRESSED"
 BADGE_COLOR = "#1F6BFF"
 TEXT_COLOR = "#FFFFFF"
 BADGE_BORDER = "#FFFFFF"
-BADGE_SHADOW = (0, 0, 0, 80)
+BADGE_SHADOW = (0, 0, 0, 120)
 MAX_ARTWORK_SIZE = (300, 300)
-BADGE_WIDTH = 200
 
 
 def process_artwork(
@@ -54,7 +53,7 @@ def _add_badge(image: Image.Image) -> Image.Image:
     text_width = bbox[2] - bbox[0]
     text_height = bbox[3] - bbox[1]
 
-    pill_width = max(BADGE_WIDTH, text_width + horizontal_padding * 2)
+    pill_width = text_width + horizontal_padding * 2
     pill_height = text_height + vertical_padding * 2
     margin = max(18, int(min(width, height) * 0.04))
     left = width - margin - pill_width
@@ -88,7 +87,7 @@ def _add_badge(image: Image.Image) -> Image.Image:
         width=max(3, pill_height // 14),
     )
     text_x = left + (pill_width - text_width) / 2
-    text_y = top + (pill_height - text_height) / 2 - 1
+    text_y = top + (pill_height - text_height) / 2
     draw.text(
         (text_x, text_y),
         BADGE_TEXT,

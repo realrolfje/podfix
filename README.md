@@ -14,6 +14,7 @@ Current behavior:
 - Preserves show artwork and per-episode artwork in the generated feed
 - Generates a root landing page that lists all configured podcasts
 - Provides `sync`, `rebuild`, and `serve` CLI commands
+- Provides a `rebuild-images` CLI command for artwork-only refreshes
 
 ## Layout
 
@@ -179,6 +180,14 @@ PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild --config config.tom
 
 `rebuild` force-overwrites existing public episode files and re-runs `ffmpeg`, so updated audio settings take effect even when filenames stay the same.
 
+Rebuild artwork only:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild-images --config config.toml
+```
+
+`rebuild-images` re-fetches the selected feed window, regenerates show and episode artwork for already-synced episodes, rewrites the public feed and show pages, and skips media download/transcode work.
+
 Serve the generated feed locally:
 
 ```bash
@@ -251,6 +260,7 @@ Normalization notes:
 - For `story` podcasts that one episode is the oldest not-yet-synced item inside the configured episode window.
 - `max_episodes` controls how many synced episodes are retained in the generated feed and show page. Use `"unlimited"` to keep all of them.
 - `rebuild` always re-fetches the selected episode window and re-encodes the output MP3s, per podcast.
+- `rebuild-images` always re-fetches the selected episode window and regenerates artwork for already-synced episodes without running `ffmpeg`.
 - Failed episode downloads or transcodes are logged and skipped.
 - The state file is written atomically to avoid partial corruption.
 - Episode artwork can be reused from the upstream feed or cached locally with a badge, depending on config.

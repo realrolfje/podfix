@@ -17,17 +17,31 @@ from .state import StateStore
 LOGGER = logging.getLogger(__name__)
 
 
-def sync(config: AppConfig, rebuild: bool = False) -> Path:
+def sync(
+    config: AppConfig,
+    rebuild: bool = False,
+    rebuild_images: bool = False,
+) -> Path:
     _cleanup_legacy_root_public(config)
     summaries: list[dict[str, Any]] = []
     for podcast in config.podcasts:
-        summaries.append(_sync_podcast(podcast, rebuild=rebuild))
+        summaries.append(
+            _sync_podcast(
+                podcast,
+                rebuild=rebuild,
+                rebuild_images=rebuild_images,
+            )
+        )
     summaries.sort(key=lambda item: str(item.get("title", "")).casefold())
     write_library_index(config, summaries)
     return config.public_index
 
 
-def _sync_podcast(config: PodcastConfig, rebuild: bool) -> dict[str, Any]:
+def _sync_podcast(
+    config: PodcastConfig,
+    rebuild: bool,
+    rebuild_images: bool,
+) -> dict[str, Any]:
     state_store = StateStore(config.state_file)
     state = state_store.load()
     if rebuild:
@@ -62,28 +76,27 @@ def _sync_podcast(config: PodcastConfig, rebuild: bool) -> dict[str, Any]:
             write_podcast_index(config, metadata, episode_records)
             return _podcast_summary(config, metadata, episode_records)
 
-    metadata = dict(snapshot.metadata)
-    if metadata.get("image_url") and (config.cache_artwork or config.badge_artwork):
-        try:
-            if config.badge_artwork:
-                metadata["image_url"] = process_artwork(
-                    session, config, metadata["image_url"]
-                )
-            else:
-                cached_url, _ = cache_artwork(session, config, metadata["image_url"])
-                metadata["image_url"] = cached_url
-        except Exception as exc:  # noqa: BLE001
-            LOGGER.warning("artwork cache failed for %s: %s", config.slug, exc)
+    metadata = _process_metadata_artwork(session, config, dict(snapshot.metadata))
 
     episode_state = dict(state.get("episodes", {}))
     next_episode_state: dict[str, dict[str, Any]] = dict(episode_state)
-    episodes_to_process = _episodes_to_process(
-        snapshot.episodes,
-        episode_state,
-        snapshot.resolved_mode,
-        config.max_episodes,
-        rebuild,
-    )
+    if rebuild_images:
+        next_episode_state = _rebuild_episode_artwork(
+            session,
+            config,
+            snapshot.episodes,
+            episode_state,
+            snapshot.resolved_mode,
+        )
+        episodes_to_process: list[Episode] = []
+    else:
+        episodes_to_process = _episodes_to_process(
+            snapshot.episodes,
+            episode_state,
+            snapshot.resolved_mode,
+            config.max_episodes,
+            rebuild,
+        )
 
     for episode in episodes_to_process:
         previous = episode_state.get(episode.guid)
@@ -99,9 +112,7 @@ def _sync_podcast(config: PodcastConfig, rebuild: bool) -> dict[str, Any]:
             continue
         try:
             LOGGER.info("processing %s: %s", config.slug, episode.title)
-            image_url = episode.image_url
-            if image_url and config.badge_artwork:
-                image_url = process_artwork(session, config, image_url)
+            image_url = _process_episode_artwork(session, config, episode.image_url)
             source_path = download_media(session, config, episode)
             public_path = transcode_media_with_options(
                 config,
@@ -152,6 +163,64 @@ def _sync_podcast(config: PodcastConfig, rebuild: bool) -> dict[str, Any]:
     }
     state_store.save(next_state)
     return _podcast_summary(config, metadata, ordered_records)
+
+
+def _process_metadata_artwork(
+    session: Any,
+    config: PodcastConfig,
+    metadata: dict[str, Any],
+) -> dict[str, Any]:
+    image_url = metadata.get("image_url")
+    if not image_url or not (config.cache_artwork or config.badge_artwork):
+        return metadata
+    try:
+        if config.badge_artwork:
+            metadata["image_url"] = process_artwork(session, config, image_url)
+        else:
+            cached_url, _ = cache_artwork(session, config, image_url)
+            metadata["image_url"] = cached_url
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("artwork cache failed for %s: %s", config.slug, exc)
+    return metadata
+
+
+def _process_episode_artwork(
+    session: Any,
+    config: PodcastConfig,
+    image_url: str | None,
+) -> str | None:
+    if not image_url or not (config.cache_artwork or config.badge_artwork):
+        return image_url
+    try:
+        if config.badge_artwork:
+            return process_artwork(session, config, image_url)
+        cached_url, _ = cache_artwork(session, config, image_url)
+        return cached_url
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning("episode artwork cache failed for %s: %s", config.slug, exc)
+        return image_url
+
+
+def _rebuild_episode_artwork(
+    session: Any,
+    config: PodcastConfig,
+    episodes: list[Episode],
+    episode_state: dict[str, dict[str, Any]],
+    resolved_mode: str,
+) -> dict[str, dict[str, Any]]:
+    next_episode_state = dict(episode_state)
+    for episode in _eligible_feed_window(episodes, resolved_mode, config.max_episodes):
+        previous = episode_state.get(episode.guid)
+        if not previous:
+            continue
+        LOGGER.info("rebuilding artwork for %s: %s", config.slug, episode.title)
+        next_episode_state[episode.guid] = {
+            **previous,
+            "image_url": _process_episode_artwork(session, config, episode.image_url),
+            "signature": _episode_signature(episode),
+            "source_signature": _source_signature(episode),
+        }
+    return next_episode_state
 
 
 def _podcast_summary(

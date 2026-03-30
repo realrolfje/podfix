@@ -21,6 +21,9 @@ def main() -> None:
     rebuild_parser = subparsers.add_parser("rebuild")
     rebuild_parser.add_argument("--config", required=True)
 
+    rebuild_images_parser = subparsers.add_parser("rebuild-images")
+    rebuild_images_parser.add_argument("--config", required=True)
+
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument("--config", required=True)
     serve_parser.add_argument("--port", type=int, default=8080)
@@ -40,6 +43,12 @@ def main() -> None:
     if args.command == "rebuild":
         config = load_config(args.config)
         index_path = sync(config, rebuild=True)
+        print(index_path)
+        return
+
+    if args.command == "rebuild-images":
+        config = load_config(args.config)
+        index_path = sync(config, rebuild_images=True)
         print(index_path)
         return
 

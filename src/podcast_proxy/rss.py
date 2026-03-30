@@ -118,7 +118,7 @@ def write_podcast_index(
             <span>Copy RSS Link</span>
           </button>
         </div>
-        <p class="hint">Use <code>Copy RSS Link</code> to copy the URL and paste it in your favorite podcast app. 
+        <p class="hint">Click"Copy RSS Link" to copy the URL and paste it in your favorite podcast app. 
         You can also open the RSS directly, or click on "Play" on any of the episodes below to listen directly.</p>
       </div>
     </section>
