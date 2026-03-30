@@ -1,5 +1,5 @@
 base_url = "http://static.rolfje.com/podfix/data"
-output_dir = "/Users/rolf/dockers/ngnix-slim/static/podfix/data"
+output_dir = "/Users/rolf/dockers/ngnix-slim/static/podfix"
 keep_original_downloads = false
 cache_artwork = false
 badge_artwork = true
