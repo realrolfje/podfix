@@ -87,8 +87,6 @@ def fetch_feed(
     episodes = [_entry_to_episode(entry) for entry in entries if _has_enclosure(entry)]
     resolved_mode = _resolve_podcast_mode(feed, config.podcast_mode)
     episodes.sort(key=_sort_key, reverse=(resolved_mode == "news"))
-    if config.max_episodes:
-        episodes = episodes[: config.max_episodes]
 
     metadata = {
         "title": feed.get("title", "Podcast Proxy"),

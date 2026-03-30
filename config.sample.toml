@@ -14,7 +14,7 @@ upstream_feed_url = "https://example.com/podcast/feed.xml"
 slug = "example-story"
 upstream_feed_url = "https://example.com/documentary/feed.xml"
 podcast_mode = "story"
-max_episodes = 12
+max_episodes = "unlimited"
 keep_original_downloads = true
 
 [http]

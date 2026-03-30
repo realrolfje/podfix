@@ -3,7 +3,7 @@ from __future__ import annotations
 from io import BytesIO
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 import requests
 
 from .config import PodcastConfig
@@ -13,6 +13,8 @@ from .utils import sha1_text
 BADGE_TEXT = "COMPRESSED"
 BADGE_COLOR = "#1F6BFF"
 TEXT_COLOR = "#FFFFFF"
+BADGE_BORDER = "#FFFFFF"
+BADGE_SHADOW = (0, 0, 0, 80)
 
 
 def process_artwork(
@@ -58,10 +60,29 @@ def _add_badge(image: Image.Image) -> Image.Image:
     bottom = top + pill_height
     radius = pill_height // 2
 
+    shadow_offset = max(8, pill_height // 9)
+    shadow_blur = max(12, pill_height // 4)
+    shadow_layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    shadow_draw = ImageDraw.Draw(shadow_layer)
+    shadow_draw.rounded_rectangle(
+        (
+            left,
+            top + shadow_offset,
+            right,
+            bottom + shadow_offset,
+        ),
+        radius=radius,
+        fill=BADGE_SHADOW,
+    )
+    shadow_layer = shadow_layer.filter(ImageFilter.GaussianBlur(radius=shadow_blur))
+    image.alpha_composite(shadow_layer)
+
     draw.rounded_rectangle(
         (left, top, right, bottom),
         radius=radius,
         fill=BADGE_COLOR,
+        outline=BADGE_BORDER,
+        width=max(3, pill_height // 14),
     )
     text_x = left + (pill_width - text_width) / 2
     text_y = top + (pill_height - text_height) / 2 - 1

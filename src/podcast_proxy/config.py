@@ -161,7 +161,7 @@ def load_config(path: str | Path) -> AppConfig:
     default_cache_artwork = bool(raw.get("cache_artwork", False))
     default_badge_artwork = bool(raw.get("badge_artwork", False))
     default_keep_original_downloads = bool(raw.get("keep_original_downloads", False))
-    default_max_episodes = raw.get("max_episodes")
+    default_max_episodes = _parse_max_episodes(raw.get("max_episodes"))
     default_podcast_mode = _parse_podcast_mode(raw.get("podcast_mode", "auto"))
 
     podcasts_raw = raw.get("podcasts")
@@ -278,7 +278,7 @@ def _parse_podcast(
         ),
         cache_artwork=bool(raw.get("cache_artwork", cache_artwork)),
         badge_artwork=bool(raw.get("badge_artwork", badge_artwork)),
-        max_episodes=raw.get("max_episodes", max_episodes),
+        max_episodes=_parse_max_episodes(raw.get("max_episodes", max_episodes)),
         podcast_mode=_parse_podcast_mode(raw.get("podcast_mode", podcast_mode)),
         http=http,
         ffmpeg=ffmpeg,
@@ -291,6 +291,17 @@ def _parse_podcast_mode(value: object) -> FeedMode:
     if mode not in {"auto", "news", "story"}:
         raise ValueError("podcast_mode must be one of: auto, news, story")
     return mode
+
+
+def _parse_max_episodes(value: object) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"", "unlimited", "all"}:
+            return None
+        return int(normalized)
+    return int(value)
 
 
 def _parse_slug(value: object) -> str:

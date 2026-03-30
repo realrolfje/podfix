@@ -99,7 +99,7 @@ Important config values:
 - `keep_original_downloads`: if `true`, keep the original downloaded source files for debugging
 - `cache_artwork`: if `true`, artwork is cached locally without modification
 - `badge_artwork`: if `true`, artwork is cached locally and stamped with a blue `COMPRESSED` badge
-- `max_episodes`: default number of episodes to process per podcast
+- `max_episodes`: default number of episodes to retain in each generated feed and show page; set `"unlimited"` to keep all synced episodes
 - `podcast_mode`: default mode for podcasts that do not override it
 - `[[podcasts]]`: array of podcast entries in the same TOML file
 - `slug`: URL path segment and output folder name for that podcast
@@ -111,9 +111,10 @@ Per-podcast overrides:
 
 Mode behavior:
 
-- `news`: treat the newest episodes as relevant and process the latest `N`
-- `story`: treat the feed like a documentary or serialized show and process the oldest `N`
+- `news`: on each `sync`, process only the single newest upstream episode; generated feeds and show pages are ordered newest to oldest
+- `story`: on each `sync`, process only the single oldest not-yet-synced episode; generated feeds and show pages are ordered oldest to newest
 - `auto`: use RSS metadata when available; currently `itunes:type = serial` maps to `story`, otherwise it falls back to `news`
+- `max_episodes = "unlimited"`: keep all synced episodes in the generated feed and show page, which is useful for documentaries and serialized archives
 
 Audio tuning:
 
@@ -201,7 +202,10 @@ Normalization notes:
 
 ## Notes
 
-- `sync` skips unchanged episodes based on stored source metadata, per podcast.
+- `sync` processes at most one episode per podcast on each run.
+- For `news` podcasts that one episode is the newest upstream item.
+- For `story` podcasts that one episode is the oldest not-yet-synced item inside the configured episode window.
+- `max_episodes` controls how many synced episodes are retained in the generated feed and show page. Use `"unlimited"` to keep all of them.
 - `rebuild` always re-fetches the selected episode window and re-encodes the output MP3s, per podcast.
 - Failed episode downloads or transcodes are logged and skipped.
 - The state file is written atomically to avoid partial corruption.

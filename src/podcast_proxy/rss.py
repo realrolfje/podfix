@@ -83,7 +83,10 @@ def write_podcast_index(
             f'<img class="cover" src="{escape(_relative_podcast_image_url(config, str(image_url)))}" alt="{title} cover art">'
         )
 
-    items_markup = "\n".join(_episode_card(record) for record in episode_records[:10])
+    items_markup = "\n".join(
+        _episode_card(record, fallback_image_url=image_url, config=config)
+        for record in episode_records[:10]
+    )
     if not items_markup:
         items_markup = "<p class=\"empty\">No episodes published yet.</p>"
 
@@ -115,7 +118,8 @@ def write_podcast_index(
             <span>Copy RSS Link</span>
           </button>
         </div>
-        <p class="hint">Use the <code>feed.xml</code> URL in a podcast app. This page lives next to the generated feed.</p>
+        <p class="hint">Use <code>Copy RSS Link</code> to copy the URL and paste it in your favorite podcast app. 
+        You can also open the RSS directly, or click on "Play" on any of the episodes below to listen directly.</p>
       </div>
     </section>
     <section>
@@ -152,7 +156,12 @@ def write_library_index(app_config: AppConfig, podcasts: list[dict[str, Any]]) -
     <section class="hero hero-library">
       <div>
         <h1>Podcast Library</h1>
-        <p class="lede">Below is a list of podcasts which are post-processed so that speech is clear and of equal level between speakers as much as possible. Click on "Open show page" for details per show, or use the "Copy RSS Link" to add the link to your favourite podcast app. Please remember to support the autors of the podcasts below by subscribing to their affeliate programs (Podimo, Patreon, or socials).</p>
+        <p class="lede">Below is a list of podcasts which are post-processed so that speech is 
+        clear and of equal level between speakers as much as possible. The bitrate is also reduced
+        to a more storage- and network friendly size. Click on "Open show page" 
+        for details per show, or use the "Copy RSS Link" to add the link to your favourite podcast 
+        app. Please remember to support the autors of the podcasts below by subscribing to their 
+        affeliate programs (Podimo, Patreon, Soundcloud, or socials).</p>
       </div>
     </section>
     <section>
@@ -178,12 +187,24 @@ def _text(parent: ET.Element, tag: str, value: Any) -> None:
     element.text = str(value)
 
 
-def _episode_card(record: dict[str, Any]) -> str:
+def _episode_card(
+    record: dict[str, Any],
+    *,
+    fallback_image_url: str | None,
+    config: PodcastConfig,
+) -> str:
     title = escape(str(record.get("title", "Untitled episode")))
     published = escape(str(record.get("published", "")))
     enclosure_url = escape(_relative_episode_url(str(record.get("enclosure_url", "#"))))
+    image_url = str(record.get("image_url") or fallback_image_url or "")
+    image_markup = ""
+    if image_url:
+        image_markup = (
+            f'<img class="episode-image" src="{escape(_relative_podcast_image_url(config, image_url))}" alt="{title} artwork">'
+        )
     return (
         "<article class=\"episode\">"
+        f"{image_markup}"
         "<div class=\"episode-copy\">"
         f"<h3 class=\"episode-title\">{title}</h3>"
         f"<div class=\"meta\">{published}</div>"
@@ -360,13 +381,21 @@ def _shared_css() -> str:
     }
     .episode {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: 72px minmax(0, 1fr) auto;
       gap: 14px;
       align-items: center;
       padding: 16px 0;
       border-top: 1px solid var(--line);
     }
     .episode:first-child { border-top: 0; padding-top: 0; }
+    .episode-image {
+      width: 72px;
+      height: 72px;
+      display: block;
+      object-fit: cover;
+      border-radius: 16px;
+      box-shadow: 0 10px 24px rgba(31, 27, 22, 0.12);
+    }
     .episode-copy {
       min-width: 0;
     }
@@ -440,8 +469,16 @@ def _shared_css() -> str:
         grid-template-columns: 1fr;
       }
       .episode {
-        grid-template-columns: 1fr;
+        grid-template-columns: 56px minmax(0, 1fr);
         align-items: start;
+      }
+      .episode-image {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+      }
+      .play-button {
+        grid-column: 2;
       }
       main {
         padding: 20px 14px 40px;

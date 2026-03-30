@@ -15,6 +15,40 @@ slug = "alledaagse-vragen"
 upstream_feed_url = "https://podcast.npo.nl/feed/alicante.xml"
 podcast_mode = "news"
 
+[[podcasts]]
+slug = "achterwerk"
+upstream_feed_url = "https://feeds.soundcloud.com/users/soundcloud:users:1220611459/sounds.rss"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "feit-of-fictie"
+upstream_feed_url = "https://podcast.npo.nl/feed/feit-of-fictie.xml"
+podcast_mode = "news"
+
+[[podcasts]]
+slug = "losse-eindjes"
+upstream_feed_url = "https://podcast.npo.nl/feed/losse-eindjes.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "high-class-escortgeheimen"
+upstream_feed_url = "https://www.omnycontent.com/d/playlist/fdd7ab40-270d-4a1e-a257-acd200da1324/eec9727b-b501-401d-b65d-b362009d1ac7/ae16cf5f-8a7f-43e6-b186-b362009d2634/podcast.rss"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "bnr-nieuws-vandaag"
+upstream_feed_url = "https://www.omnycontent.com/d/playlist/8257a063-6be9-42fa-b892-acd4013b1255/52ce962c-348e-4072-959d-adc80089fc68/23074c8b-94ff-4fce-99b7-adc80089fc8d/podcast.rss"
+podcast_mode = "news"
+
+[[podcasts]]
+slug = "de-rolverdeling"
+upstream_feed_url = "https://podcast.npo.nl/feed/de-rolverdeling.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
 [http]
 user_agent = "podcast-proxy/0.1"
 timeout_seconds = 30
