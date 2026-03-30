@@ -33,14 +33,14 @@ def main() -> None:
 
     if args.command == "sync":
         config = load_config(args.config)
-        feed_path = sync(config, rebuild=False)
-        print(feed_path)
+        index_path = sync(config, rebuild=False)
+        print(index_path)
         return
 
     if args.command == "rebuild":
         config = load_config(args.config)
-        feed_path = sync(config, rebuild=True)
-        print(feed_path)
+        index_path = sync(config, rebuild=True)
+        print(index_path)
         return
 
     if args.command == "serve":

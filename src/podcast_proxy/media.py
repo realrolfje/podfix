@@ -5,13 +5,13 @@ import subprocess
 
 import requests
 
-from .config import Config
+from .config import PodcastConfig
 from .feed import Episode
 
 
 def download_media(
     session: requests.Session,
-    config: Config,
+    config: PodcastConfig,
     episode: Episode,
 ) -> Path:
     suffix = Path(episode.enclosure_url).suffix or ".bin"
@@ -32,7 +32,7 @@ def download_media(
     return destination
 
 
-def transcode_media(config: Config, source_path: Path, episode: Episode) -> Path:
+def transcode_media(config: PodcastConfig, source_path: Path, episode: Episode) -> Path:
     return transcode_media_with_options(
         config,
         source_path,
@@ -42,14 +42,14 @@ def transcode_media(config: Config, source_path: Path, episode: Episode) -> Path
 
 
 def transcode_media_with_options(
-    config: Config,
+    config: PodcastConfig,
     source_path: Path,
     episode: Episode,
     force: bool,
 ) -> Path:
     public_path = config.public_episodes_dir / f"{episode.slug}.mp3"
     if public_path.exists() and not force:
-        _cleanup_source(source_path)
+        _cleanup_source(config, source_path)
         return public_path
     if public_path.exists() and force:
         public_path.unlink()
@@ -64,12 +64,12 @@ def transcode_media_with_options(
     if completed.returncode != 0:
         raise RuntimeError(completed.stderr.strip() or "ffmpeg failed")
 
-    _cleanup_source(source_path)
+    _cleanup_source(config, source_path)
     return public_path
 
 
 def build_ffmpeg_command(
-    config: Config,
+    config: PodcastConfig,
     source_path: Path,
     output_path: Path,
     source_kind: str,
@@ -115,6 +115,8 @@ def build_ffmpeg_command(
     return command
 
 
-def _cleanup_source(source_path: Path) -> None:
+def _cleanup_source(config: PodcastConfig, source_path: Path) -> None:
+    if config.keep_original_downloads:
+        return
     if source_path.exists():
         source_path.unlink()

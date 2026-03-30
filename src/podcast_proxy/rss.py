@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from html import escape, unescape
 from pathlib import Path
+import re
 from typing import Any
 import xml.etree.ElementTree as ET
 
-from .config import Config
+from .config import AppConfig, PodcastConfig
 
 
 ITUNES_NS = "http://www.itunes.com/dtds/podcast-1.0.dtd"
@@ -12,7 +14,7 @@ CONTENT_NS = "http://purl.org/rss/1.0/modules/content/"
 
 
 def write_feed(
-    config: Config,
+    config: PodcastConfig,
     metadata: dict[str, Any],
     episode_records: list[dict[str, Any]],
 ) -> Path:
@@ -23,7 +25,7 @@ def write_feed(
     channel = ET.SubElement(rss, "channel")
 
     _text(channel, "title", metadata.get("title", "Podcast Proxy"))
-    _text(channel, "link", metadata.get("link") or config.base_url)
+    _text(channel, "link", metadata.get("link") or config.public_base_url)
     _text(channel, "description", metadata.get("description", ""))
     _text(channel, "language", metadata.get("language"))
     _text(channel, f"{{{ITUNES_NS}}}author", metadata.get("author"))
@@ -36,7 +38,7 @@ def write_feed(
         image = ET.SubElement(channel, "image")
         _text(image, "url", metadata["image_url"])
         _text(image, "title", metadata.get("title", "Podcast Proxy"))
-        _text(image, "link", metadata.get("link") or config.base_url)
+        _text(image, "link", metadata.get("link") or config.public_base_url)
         itunes_image = ET.SubElement(channel, f"{{{ITUNES_NS}}}image")
         itunes_image.set("href", str(metadata["image_url"]))
 
@@ -65,8 +67,431 @@ def write_feed(
     return config.public_feed
 
 
+def write_podcast_index(
+    config: PodcastConfig,
+    metadata: dict[str, Any],
+    episode_records: list[dict[str, Any]],
+) -> Path:
+    title = escape(str(metadata.get("title", "Podcast Proxy")))
+    description = escape(_plain_text(metadata.get("description", "")))
+    image_url = metadata.get("image_url")
+    feed_url = "feed.xml"
+
+    image_markup = ""
+    if image_url:
+        image_markup = (
+            f'<img class="cover" src="{escape(_relative_podcast_image_url(config, str(image_url)))}" alt="{title} cover art">'
+        )
+
+    items_markup = "\n".join(_episode_card(record) for record in episode_records[:10])
+    if not items_markup:
+        items_markup = "<p class=\"empty\">No episodes published yet.</p>"
+
+    home_href = "../" if not config.legacy_root else "./"
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{title}</title>
+  <link rel="alternate" type="application/rss+xml" title="{title}" href="{escape(feed_url)}">
+  <style>{_shared_css()}</style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <div>{image_markup}</div>
+      <div>
+        <p class="eyebrow"><a href="{escape(home_href)}">Podcast Library</a></p>
+        <h1>{title}</h1>
+        <p class="lede">{description}</p>
+        <div class="actions">
+          <a class="button rss-button" href="{escape(feed_url)}" aria-label="Open RSS feed">
+            <span class="rss-icon" aria-hidden="true">{_rss_icon()}</span>
+            <span>Open RSS</span>
+          </a>
+          <button class="link rss-link copy-feed" type="button" data-feed-url="{escape(feed_url)}" aria-label="Copy RSS feed URL">
+            <span class="rss-icon" aria-hidden="true">{_rss_icon()}</span>
+            <span>Copy RSS Link</span>
+          </button>
+        </div>
+        <p class="hint">Use the <code>feed.xml</code> URL in a podcast app. This page lives next to the generated feed.</p>
+      </div>
+    </section>
+    <section>
+      <h2>Recent Episodes</h2>
+      <div class="episodes">
+        {items_markup}
+      </div>
+    </section>
+  </main>
+</body>
+<script>{_copy_script()}</script>
+</html>
+"""
+    destination = config.public_index
+    destination.write_text(html, encoding="utf-8")
+    return destination
+
+
+def write_library_index(app_config: AppConfig, podcasts: list[dict[str, Any]]) -> Path:
+    cards = "\n".join(_podcast_card(card) for card in podcasts)
+    if not cards:
+        cards = "<p class=\"empty\">No podcasts configured yet.</p>"
+
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Podcast Library</title>
+  <style>{_shared_css()}</style>
+</head>
+<body>
+  <main>
+    <section class="hero hero-library">
+      <div>
+        <p class="eyebrow">Self-hosted</p>
+        <h1>Podcast Library</h1>
+        <p class="lede">All generated podcast feeds are listed here. Open a show page for details, or subscribe directly with its <code>feed.xml</code> URL.</p>
+      </div>
+    </section>
+    <section>
+      <h2>Available Podcasts</h2>
+      <div class="podcasts">
+        {cards}
+      </div>
+    </section>
+  </main>
+</body>
+<script>{_copy_script()}</script>
+</html>
+"""
+    destination = app_config.public_index
+    destination.write_text(html, encoding="utf-8")
+    return destination
+
+
 def _text(parent: ET.Element, tag: str, value: Any) -> None:
     if value is None:
         return
     element = ET.SubElement(parent, tag)
     element.text = str(value)
+
+
+def _episode_card(record: dict[str, Any]) -> str:
+    title = escape(str(record.get("title", "Untitled episode")))
+    published = escape(str(record.get("published", "")))
+    enclosure_url = escape(_relative_episode_url(str(record.get("enclosure_url", "#"))))
+    return (
+        "<article class=\"episode\">"
+        "<div class=\"episode-copy\">"
+        f"<h3 class=\"episode-title\">{title}</h3>"
+        f"<div class=\"meta\">{published}</div>"
+        "</div>"
+        f"<a class=\"audio play-button\" href=\"{enclosure_url}\" aria-label=\"Play processed MP3\">"
+        "<span class=\"play-icon\" aria-hidden=\"true\">&#9654;</span>"
+        "<span>Play</span>"
+        "</a>"
+        "</article>"
+    )
+
+
+def _podcast_card(card: dict[str, Any]) -> str:
+    title = escape(str(card.get("title", "Untitled podcast")))
+    description = escape(_plain_text(card.get("description", "")))
+    slug = str(card.get("slug", "")).strip("/")
+    feed_url = escape(f"{slug}/feed.xml" if slug else "feed.xml")
+    index_url = escape(f"{slug}/index.html" if slug else "index.html")
+    image_url = card.get("image_url")
+    episodes = int(card.get("episode_count", 0))
+    image_markup = ""
+    if image_url:
+        image_markup = (
+            f'<img class="podcast-cover" src="{escape(f"{slug}/images/{Path(str(image_url)).name}" if slug else str(image_url))}" alt="{title} cover art">'
+        )
+    return (
+        "<article class=\"podcast-card\">"
+        f"{image_markup}"
+        "<div class=\"podcast-copy\">"
+        f"<h3 class=\"podcast-title\"><a href=\"{index_url}\">{title}</a></h3>"
+        f"<p class=\"lede lede-small\">{description}</p>"
+        f"<p class=\"meta\">{episodes} published episode{'s' if episodes != 1 else ''}</p>"
+        "<div class=\"actions\">"
+        f"<a class=\"button\" href=\"{index_url}\">Open show page</a>"
+        f"<button class=\"link rss-link copy-feed\" type=\"button\" data-feed-url=\"{feed_url}\" aria-label=\"Copy RSS feed URL\"><span class=\"rss-icon\" aria-hidden=\"true\">{_rss_icon()}</span><span>Copy RSS Link</span></button>"
+        "</div>"
+        "</div>"
+        "</article>"
+    )
+
+
+def _plain_text(value: Any) -> str:
+    text = unescape(str(value or ""))
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _shared_css() -> str:
+    return """
+    :root {
+      --bg: #f6f4ef;
+      --card: #fffdf7;
+      --ink: #1f1b16;
+      --muted: #6c6257;
+      --accent: #0c63ff;
+      --accent-ink: #ffffff;
+      --line: rgba(31, 27, 22, 0.08);
+      --shadow: 0 24px 60px rgba(31, 27, 22, 0.12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(12, 99, 255, 0.12), transparent 30%),
+        linear-gradient(180deg, #f8f6f1 0%, #f2ede4 100%);
+      color: var(--ink);
+      font-family: "Avenir Next", Avenir, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+      gap: 28px;
+      align-items: center;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+    .hero-library {
+      grid-template-columns: 1fr;
+    }
+    .cover, .podcast-cover {
+      width: 100%;
+      display: block;
+      border-radius: 22px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+    h2 {
+      margin: 0 0 16px;
+      font-size: 1.3rem;
+      letter-spacing: -0.03em;
+    }
+    .eyebrow {
+      margin: 0 0 10px;
+      font-size: 0.82rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .eyebrow a {
+      color: inherit;
+      text-decoration: none;
+    }
+    .lede {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 1.02rem;
+    }
+    .lede-small {
+      font-size: 0.96rem;
+      margin-bottom: 12px;
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 20px 0 10px;
+    }
+    .button, .link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 700;
+      gap: 10px;
+      cursor: pointer;
+      font: inherit;
+    }
+    .button {
+      background: var(--accent);
+      color: var(--accent-ink);
+    }
+    .link {
+      color: var(--ink);
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.6);
+    }
+    button.link {
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    .hint, .meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+    section {
+      margin-top: 30px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+      backdrop-filter: blur(10px);
+    }
+    .episodes {
+      display: grid;
+      gap: 14px;
+    }
+    .episode {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
+    }
+    .episode:first-child { border-top: 0; padding-top: 0; }
+    .episode-copy {
+      min-width: 0;
+    }
+    .episode-title, .podcast-title {
+      margin: 0;
+      font-size: 1.05rem;
+      line-height: 1.3;
+    }
+    .audio, .podcast-title a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .play-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(12, 99, 255, 0.18);
+      background: rgba(12, 99, 255, 0.08);
+      gap: 8px;
+      white-space: nowrap;
+    }
+    .play-icon {
+      display: inline-flex;
+      width: 18px;
+      height: 18px;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      line-height: 1;
+    }
+    .rss-icon {
+      display: inline-flex;
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+    }
+    .rss-icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .podcasts {
+      display: grid;
+      gap: 18px;
+    }
+    .podcast-card {
+      display: grid;
+      grid-template-columns: 160px minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+      padding: 4px 0;
+      border-top: 1px solid var(--line);
+    }
+    .podcast-card:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+    .podcast-copy {
+      min-width: 0;
+    }
+    .empty {
+      margin: 0;
+      color: var(--muted);
+    }
+    @media (max-width: 760px) {
+      .hero, .podcast-card {
+        grid-template-columns: 1fr;
+      }
+      .episode {
+        grid-template-columns: 1fr;
+        align-items: start;
+      }
+      main {
+        padding: 20px 14px 40px;
+      }
+    }
+    """
+
+
+def _relative_podcast_image_url(config: PodcastConfig, url: str) -> str:
+    image_name = Path(url).name
+    if image_name:
+        return f"images/{image_name}"
+    return url
+
+
+def _relative_episode_url(url: str) -> str:
+    name = Path(url).name
+    if name:
+        return f"episodes/{name}"
+    return url
+
+
+def _rss_icon() -> str:
+    return (
+        '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        '<circle cx="6" cy="18" r="2.2" fill="currentColor"/>'
+        '<path d="M4 10.5C9.25 10.5 13.5 14.75 13.5 20" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>'
+        '<path d="M4 4C13.94 4 22 12.06 22 22" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/>'
+        "</svg>"
+    )
+
+
+def _copy_script() -> str:
+    return """
+    document.querySelectorAll('.copy-feed').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const label = button.querySelector('span:last-child');
+        const original = label ? label.textContent : 'Copy RSS Link';
+        const target = button.dataset.feedUrl || 'feed.xml';
+        const absolute = new URL(target, window.location.href).href;
+        try {
+          await navigator.clipboard.writeText(absolute);
+          if (label) label.textContent = 'Copied';
+          window.setTimeout(() => {
+            if (label) label.textContent = original;
+          }, 1200);
+        } catch (_error) {
+          window.prompt('Copy this feed URL:', absolute);
+        }
+      });
+    });
+    """

@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 import requests
 
-from .config import Config
+from .config import PodcastConfig
 from .utils import sha1_text
 
 
@@ -17,7 +17,7 @@ TEXT_COLOR = "#FFFFFF"
 
 def process_artwork(
     session: requests.Session,
-    config: Config,
+    config: PodcastConfig,
     image_url: str,
 ) -> str:
     response = session.get(image_url, timeout=config.http.timeout_seconds)
@@ -34,7 +34,7 @@ def process_artwork(
         badged.convert("RGB").save(destination, quality=95)
     else:
         badged.save(destination)
-    return f"{config.base_url}/images/{filename}"
+    return f"{config.public_base_url}/images/{filename}"
 
 
 def _add_badge(image: Image.Image) -> Image.Image:

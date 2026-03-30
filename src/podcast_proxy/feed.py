@@ -10,7 +10,7 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from .config import Config
+from .config import PodcastConfig
 from .utils import sanitize_filename, sha1_text
 
 
@@ -39,7 +39,7 @@ class FeedSnapshot:
     resolved_mode: str = "news"
 
 
-def make_session(config: Config) -> requests.Session:
+def make_session(config: PodcastConfig) -> requests.Session:
     session = requests.Session()
     session.headers.update({"User-Agent": config.http.user_agent})
     retry = Retry(
@@ -56,7 +56,7 @@ def make_session(config: Config) -> requests.Session:
 
 def fetch_feed(
     session: requests.Session,
-    config: Config,
+    config: PodcastConfig,
     previous_state: dict[str, Any],
 ) -> FeedSnapshot:
     headers: dict[str, str] = {}
@@ -115,7 +115,7 @@ def fetch_feed(
 
 def cache_artwork(
     session: requests.Session,
-    config: Config,
+    config: PodcastConfig,
     image_url: str,
 ) -> tuple[str, str | None]:
     response = session.get(image_url, timeout=config.http.timeout_seconds)
@@ -126,7 +126,7 @@ def cache_artwork(
     filename = f"artwork-{sha1_text(image_url)}{extension}"
     destination = config.public_images_dir / filename
     destination.write_bytes(response.content)
-    public_url = f"{config.base_url}/images/{filename}"
+    public_url = f"{config.public_base_url}/images/{filename}"
     return public_url, response.headers.get("Content-Type")
 
 

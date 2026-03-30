@@ -1,10 +1,21 @@
-upstream_feed_url = "https://example.com/podcast/feed.xml"
 base_url = "https://podcast-proxy.example.com"
 output_dir = "./output"
+keep_original_downloads = false
 cache_artwork = false
 badge_artwork = false
 max_episodes = 20
 podcast_mode = "auto"
+
+[[podcasts]]
+slug = "example-news"
+upstream_feed_url = "https://example.com/podcast/feed.xml"
+
+[[podcasts]]
+slug = "example-story"
+upstream_feed_url = "https://example.com/documentary/feed.xml"
+podcast_mode = "story"
+max_episodes = 12
+keep_original_downloads = true
 
 [http]
 user_agent = "podcast-proxy/0.1"

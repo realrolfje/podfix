@@ -1,10 +1,19 @@
-upstream_feed_url = "https://omny.fm/shows/dai-carter-missie-mentale-kracht/playlists/podcast.rss"
 base_url = "http://localhost:8080"
 output_dir = "./output"
+keep_original_downloads = false
 cache_artwork = false
 badge_artwork = true
 max_episodes = 5
 podcast_mode = "auto"
+
+[[podcasts]]
+slug = "dai-carter"
+upstream_feed_url = "https://omny.fm/shows/dai-carter-missie-mentale-kracht/playlists/podcast.rss"
+
+[[podcasts]]
+slug = "alledaagse-vragen"
+upstream_feed_url = "https://podcast.npo.nl/feed/alicante.xml"
+podcast_mode = "news"
 
 [http]
 user_agent = "podcast-proxy/0.1"

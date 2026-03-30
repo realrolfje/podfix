@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import tomllib
 
+from .utils import sanitize_filename
+
 FeedMode = str
 
 
@@ -33,44 +35,63 @@ class FFMpegConfig:
 
 
 @dataclass(slots=True)
-class Config:
+class PodcastConfig:
+    slug: str
     upstream_feed_url: str
     base_url: str
     output_dir: Path
+    keep_original_downloads: bool
     cache_artwork: bool
     badge_artwork: bool
     max_episodes: int | None
     podcast_mode: FeedMode
     http: HTTPConfig
     ffmpeg: FFMpegConfig
+    legacy_root: bool = False
 
     @property
     def data_dir(self) -> Path:
         return self.output_dir / "data"
 
     @property
+    def state_dir(self) -> Path:
+        return self.data_dir / "state"
+
+    @property
     def state_file(self) -> Path:
-        return self.data_dir / "state.json"
+        if self.legacy_root:
+            return self.data_dir / "state.json"
+        return self.state_dir / f"{self.slug}.json"
 
     @property
     def downloads_dir(self) -> Path:
-        return self.data_dir / "downloads"
-
-    @property
-    def processed_dir(self) -> Path:
-        return self.data_dir / "processed"
+        if self.legacy_root:
+            return self.data_dir / "downloads"
+        return self.data_dir / "downloads" / self.slug
 
     @property
     def cache_dir(self) -> Path:
-        return self.data_dir / "cache"
+        if self.legacy_root:
+            return self.data_dir / "cache"
+        return self.data_dir / "cache" / self.slug
+
+    @property
+    def public_root_dir(self) -> Path:
+        return self.data_dir / "public"
 
     @property
     def public_dir(self) -> Path:
-        return self.data_dir / "public"
+        if self.legacy_root:
+            return self.public_root_dir
+        return self.public_root_dir / self.slug
 
     @property
     def public_feed(self) -> Path:
         return self.public_dir / "feed.xml"
+
+    @property
+    def public_index(self) -> Path:
+        return self.public_dir / "index.html"
 
     @property
     def public_episodes_dir(self) -> Path:
@@ -80,12 +101,27 @@ class Config:
     def public_images_dir(self) -> Path:
         return self.public_dir / "images"
 
+    @property
+    def public_base_url(self) -> str:
+        if self.legacy_root:
+            return self.base_url
+        return f"{self.base_url}/{self.slug}"
+
+    @property
+    def feed_url(self) -> str:
+        return f"{self.public_base_url}/feed.xml"
+
+    @property
+    def index_url(self) -> str:
+        return f"{self.public_base_url}/"
+
     def ensure_directories(self) -> None:
         for path in (
             self.data_dir,
+            self.state_file.parent,
             self.downloads_dir,
-            self.processed_dir,
             self.cache_dir,
+            self.public_root_dir,
             self.public_dir,
             self.public_episodes_dir,
             self.public_images_dir,
@@ -93,68 +129,161 @@ class Config:
             path.mkdir(parents=True, exist_ok=True)
 
 
-def load_config(path: str | Path) -> Config:
+@dataclass(slots=True)
+class AppConfig:
+    base_url: str
+    output_dir: Path
+    podcasts: list[PodcastConfig]
+
+    @property
+    def public_dir(self) -> Path:
+        return self.output_dir / "data" / "public"
+
+    @property
+    def public_index(self) -> Path:
+        return self.public_dir / "index.html"
+
+    def ensure_directories(self) -> None:
+        self.public_dir.mkdir(parents=True, exist_ok=True)
+        for podcast in self.podcasts:
+            podcast.ensure_directories()
+
+
+def load_config(path: str | Path) -> AppConfig:
     config_path = Path(path)
     raw = tomllib.loads(config_path.read_text(encoding="utf-8"))
 
-    http_raw = raw.get("http", {})
-    ffmpeg_raw = raw.get("ffmpeg", {})
+    base_url = str(raw["base_url"]).rstrip("/")
+    output_dir = Path(raw["output_dir"]).expanduser()
+    http = _parse_http(raw.get("http", {}))
+    ffmpeg = _parse_ffmpeg(raw.get("ffmpeg", {}))
 
-    config = Config(
-        upstream_feed_url=raw["upstream_feed_url"],
-        base_url=str(raw["base_url"]).rstrip("/"),
-        output_dir=Path(raw["output_dir"]).expanduser(),
-        cache_artwork=bool(raw.get("cache_artwork", False)),
-        badge_artwork=bool(raw.get("badge_artwork", False)),
-        max_episodes=raw.get("max_episodes"),
-        podcast_mode=_parse_podcast_mode(raw.get("podcast_mode", "auto")),
-        http=HTTPConfig(
-            user_agent=http_raw.get("user_agent", HTTPConfig.user_agent),
-            timeout_seconds=float(
-                http_raw.get("timeout_seconds", HTTPConfig.timeout_seconds)
-            ),
-            retries=int(http_raw.get("retries", HTTPConfig.retries)),
+    default_cache_artwork = bool(raw.get("cache_artwork", False))
+    default_badge_artwork = bool(raw.get("badge_artwork", False))
+    default_keep_original_downloads = bool(raw.get("keep_original_downloads", False))
+    default_max_episodes = raw.get("max_episodes")
+    default_podcast_mode = _parse_podcast_mode(raw.get("podcast_mode", "auto"))
+
+    podcasts_raw = raw.get("podcasts")
+    podcasts: list[PodcastConfig]
+    if podcasts_raw:
+        podcasts = [
+            _parse_podcast(
+                item,
+                base_url=base_url,
+                output_dir=output_dir,
+                cache_artwork=default_cache_artwork,
+                badge_artwork=default_badge_artwork,
+                keep_original_downloads=default_keep_original_downloads,
+                max_episodes=default_max_episodes,
+                podcast_mode=default_podcast_mode,
+                http=http,
+                ffmpeg=ffmpeg,
+                legacy_root=False,
+            )
+            for item in podcasts_raw
+        ]
+    else:
+        podcasts = [
+            PodcastConfig(
+                slug=_parse_slug(raw.get("slug") or "podcast"),
+                upstream_feed_url=raw["upstream_feed_url"],
+                base_url=base_url,
+                output_dir=output_dir,
+                keep_original_downloads=default_keep_original_downloads,
+                cache_artwork=default_cache_artwork,
+                badge_artwork=default_badge_artwork,
+                max_episodes=default_max_episodes,
+                podcast_mode=default_podcast_mode,
+                http=http,
+                ffmpeg=ffmpeg,
+                legacy_root=True,
+            )
+        ]
+
+    app_config = AppConfig(
+        base_url=base_url,
+        output_dir=output_dir,
+        podcasts=podcasts,
+    )
+    app_config.ensure_directories()
+    return app_config
+
+
+def _parse_http(raw: dict[str, object]) -> HTTPConfig:
+    return HTTPConfig(
+        user_agent=str(raw.get("user_agent", HTTPConfig.user_agent)),
+        timeout_seconds=float(raw.get("timeout_seconds", HTTPConfig.timeout_seconds)),
+        retries=int(raw.get("retries", HTTPConfig.retries)),
+    )
+
+
+def _parse_ffmpeg(raw: dict[str, object]) -> FFMpegConfig:
+    return FFMpegConfig(
+        binary=str(raw.get("binary", FFMpegConfig.binary)),
+        highpass_hz=int(raw.get("highpass_hz", FFMpegConfig.highpass_hz)),
+        lowpass_hz=int(raw.get("lowpass_hz", FFMpegConfig.lowpass_hz)),
+        compressor_threshold_db=int(
+            raw.get(
+                "compressor_threshold_db",
+                FFMpegConfig.compressor_threshold_db,
+            )
         ),
-        ffmpeg=FFMpegConfig(
-            binary=ffmpeg_raw.get("binary", FFMpegConfig.binary),
-            highpass_hz=int(ffmpeg_raw.get("highpass_hz", FFMpegConfig.highpass_hz)),
-            lowpass_hz=int(ffmpeg_raw.get("lowpass_hz", FFMpegConfig.lowpass_hz)),
-            compressor_threshold_db=int(
-                ffmpeg_raw.get(
-                    "compressor_threshold_db",
-                    FFMpegConfig.compressor_threshold_db,
-                )
-            ),
-            compressor_ratio=str(
-                ffmpeg_raw.get("compressor_ratio", FFMpegConfig.compressor_ratio)
-            ),
-            attack_ms=int(ffmpeg_raw.get("attack_ms", FFMpegConfig.attack_ms)),
-            release_ms=int(ffmpeg_raw.get("release_ms", FFMpegConfig.release_ms)),
-            sample_rate_hz=int(
-                ffmpeg_raw.get("sample_rate_hz", FFMpegConfig.sample_rate_hz)
-            ),
-            bitrate_kbps=int(ffmpeg_raw.get("bitrate_kbps", FFMpegConfig.bitrate_kbps)),
-            channels=int(ffmpeg_raw.get("channels", FFMpegConfig.channels)),
-            normalize=bool(ffmpeg_raw.get("normalize", FFMpegConfig.normalize)),
-            loudness_target_lufs=float(
-                ffmpeg_raw.get(
-                    "loudness_target_lufs",
-                    FFMpegConfig.loudness_target_lufs,
-                )
-            ),
-            true_peak_db=float(
-                ffmpeg_raw.get("true_peak_db", FFMpegConfig.true_peak_db)
-            ),
-            loudness_range_target=float(
-                ffmpeg_raw.get(
-                    "loudness_range_target",
-                    FFMpegConfig.loudness_range_target,
-                )
-            ),
+        compressor_ratio=str(raw.get("compressor_ratio", FFMpegConfig.compressor_ratio)),
+        attack_ms=int(raw.get("attack_ms", FFMpegConfig.attack_ms)),
+        release_ms=int(raw.get("release_ms", FFMpegConfig.release_ms)),
+        sample_rate_hz=int(raw.get("sample_rate_hz", FFMpegConfig.sample_rate_hz)),
+        bitrate_kbps=int(raw.get("bitrate_kbps", FFMpegConfig.bitrate_kbps)),
+        channels=int(raw.get("channels", FFMpegConfig.channels)),
+        normalize=bool(raw.get("normalize", FFMpegConfig.normalize)),
+        loudness_target_lufs=float(
+            raw.get(
+                "loudness_target_lufs",
+                FFMpegConfig.loudness_target_lufs,
+            )
+        ),
+        true_peak_db=float(raw.get("true_peak_db", FFMpegConfig.true_peak_db)),
+        loudness_range_target=float(
+            raw.get(
+                "loudness_range_target",
+                FFMpegConfig.loudness_range_target,
+            )
         ),
     )
-    config.ensure_directories()
-    return config
+
+
+def _parse_podcast(
+    raw: dict[str, object],
+    *,
+    base_url: str,
+    output_dir: Path,
+    keep_original_downloads: bool,
+    cache_artwork: bool,
+    badge_artwork: bool,
+    max_episodes: int | None,
+    podcast_mode: FeedMode,
+    http: HTTPConfig,
+    ffmpeg: FFMpegConfig,
+    legacy_root: bool,
+) -> PodcastConfig:
+    upstream_feed_url = str(raw["upstream_feed_url"])
+    slug_value = raw.get("slug") or upstream_feed_url.rsplit("/", 2)[-2]
+    return PodcastConfig(
+        slug=_parse_slug(slug_value),
+        upstream_feed_url=upstream_feed_url,
+        base_url=base_url,
+        output_dir=output_dir,
+        keep_original_downloads=bool(
+            raw.get("keep_original_downloads", keep_original_downloads)
+        ),
+        cache_artwork=bool(raw.get("cache_artwork", cache_artwork)),
+        badge_artwork=bool(raw.get("badge_artwork", badge_artwork)),
+        max_episodes=raw.get("max_episodes", max_episodes),
+        podcast_mode=_parse_podcast_mode(raw.get("podcast_mode", podcast_mode)),
+        http=http,
+        ffmpeg=ffmpeg,
+        legacy_root=legacy_root,
+    )
 
 
 def _parse_podcast_mode(value: object) -> FeedMode:
@@ -162,3 +291,8 @@ def _parse_podcast_mode(value: object) -> FeedMode:
     if mode not in {"auto", "news", "story"}:
         raise ValueError("podcast_mode must be one of: auto, news, story")
     return mode
+
+
+def _parse_slug(value: object) -> str:
+    slug = sanitize_filename(str(value).strip().lower(), fallback="podcast")
+    return slug.replace(".", "-")

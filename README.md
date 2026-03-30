@@ -1,16 +1,18 @@
 # podcast-proxy
 
-`podcast-proxy` is a small self-hosted Python tool that mirrors an upstream podcast feed, transcodes episode media with `ffmpeg`, and publishes a new RSS feed that points at the processed MP3 files.
+`podcast-proxy` is a small self-hosted Python tool that mirrors one or more upstream podcast feeds, transcodes episode media with `ffmpeg`, and publishes new RSS feeds that point at the processed MP3 files.
 
 Current behavior:
 
-- Fetches and parses an upstream RSS feed
+- Fetches and parses upstream RSS feeds
+- Supports multiple podcasts from one TOML config file
 - Keeps local state so unchanged episodes are skipped on normal sync runs
 - Downloads audio or video enclosures
 - Transcodes everything to MP3 with spoken-word defaults, compression, and optional loudness normalization
-- Regenerates a podcast RSS feed under a static `public/` directory
+- Regenerates one output feed per configured podcast under a static `public/` directory
 - Can cache and badge artwork locally with a blue `COMPRESSED` pill
 - Preserves show artwork and per-episode artwork in the generated feed
+- Generates a root landing page that lists all configured podcasts
 - Provides `sync`, `rebuild`, and `serve` CLI commands
 
 ## Layout
@@ -20,15 +22,21 @@ The generated output tree looks like this:
 ```text
 output/
   data/
-    state.json
-    cache/
     public/
-      feed.xml
-      episodes/
-      images/
+      index.html
+      dai-carter/
+        index.html
+        feed.xml
+        episodes/
+        images/
+    state/
+    cache/
+    downloads/
 ```
 
-Only published MP3s are retained under `public/episodes/`. Temporary download/transcode artifacts are cleaned up after successful processing.
+Each configured podcast gets its own subdirectory under `public/`. The root `public/index.html` lists all shows and links to each feed page.
+
+Only published MP3s are retained under each `public/<slug>/episodes/` by default. If `keep_original_downloads = true`, the original source files are also kept under `downloads/<slug>/` for debugging.
 
 Serve `output/data/public/` with any static web server, or use the built-in convenience command.
 
@@ -64,24 +72,42 @@ PYTHONPATH=src python3 -m podcast_proxy.cli sync --config config.toml
 Copy [config.sample.toml](/Users/rolf/temp/podfix/config.sample.toml) to `config.toml` and adjust:
 
 ```toml
-upstream_feed_url = "https://example.com/podcast/feed.xml"
 base_url = "https://podcast-proxy.example.com"
 output_dir = "./output"
+keep_original_downloads = false
 cache_artwork = false
 badge_artwork = false
 max_episodes = 20
 podcast_mode = "auto"
+
+[[podcasts]]
+slug = "example-news"
+upstream_feed_url = "https://example.com/podcast/feed.xml"
+
+[[podcasts]]
+slug = "example-story"
+upstream_feed_url = "https://example.com/documentary/feed.xml"
+podcast_mode = "story"
+max_episodes = 12
+keep_original_downloads = true
 ```
 
 Important config values:
 
-- `upstream_feed_url`: source podcast feed
-- `base_url`: public base URL where `feed.xml` and `episodes/*.mp3` will be served
+- `base_url`: public base URL where podcast pages, feeds, and episodes will be served
 - `output_dir`: root for generated data
+- `keep_original_downloads`: if `true`, keep the original downloaded source files for debugging
 - `cache_artwork`: if `true`, artwork is cached locally without modification
 - `badge_artwork`: if `true`, artwork is cached locally and stamped with a blue `COMPRESSED` badge
-- `max_episodes`: only process `N` episodes from the selected window
-- `podcast_mode`: `news`, `story`, or `auto`
+- `max_episodes`: default number of episodes to process per podcast
+- `podcast_mode`: default mode for podcasts that do not override it
+- `[[podcasts]]`: array of podcast entries in the same TOML file
+- `slug`: URL path segment and output folder name for that podcast
+- `upstream_feed_url`: source podcast feed for that podcast
+
+Per-podcast overrides:
+
+- Each `[[podcasts]]` entry can override `max_episodes`, `podcast_mode`, `cache_artwork`, `badge_artwork`, and `keep_original_downloads`.
 
 Mode behavior:
 
@@ -120,10 +146,22 @@ Serve the generated feed locally:
 podcast-proxy serve --config config.toml --port 8080
 ```
 
-Then point your podcast app at:
+Then open:
 
 ```text
-http://localhost:8080/feed.xml
+http://localhost:8080/
+```
+
+The root landing page lists all configured podcasts. Each show also gets its own page under:
+
+```text
+http://localhost:8080/<slug>/
+```
+
+For podcast apps, use:
+
+```text
+http://localhost:8080/<slug>/feed.xml
 ```
 
 ## ffmpeg commands
@@ -163,9 +201,9 @@ Normalization notes:
 
 ## Notes
 
-- `sync` skips unchanged episodes based on stored source metadata.
-- `rebuild` always re-fetches the selected episode window and re-encodes the output MP3s.
+- `sync` skips unchanged episodes based on stored source metadata, per podcast.
+- `rebuild` always re-fetches the selected episode window and re-encodes the output MP3s, per podcast.
 - Failed episode downloads or transcodes are logged and skipped.
 - The state file is written atomically to avoid partial corruption.
 - Episode artwork can be reused from the upstream feed or cached locally with a badge, depending on config.
-- This tool is intended for personal use and a single feed.
+- This tool is intended for personal use and self-hosting.
