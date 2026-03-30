@@ -93,10 +93,47 @@ max_episodes = 12
 keep_original_downloads = true
 ```
 
+You can also split config across files with `include`, which is useful for keeping shared podcast and `ffmpeg` settings in one file and machine-specific paths/URLs in another. Includes are resolved relative to the file that declares them.
+
+Example shared config:
+
+```toml
+# config.shared.toml
+keep_original_downloads = false
+badge_artwork = true
+max_episodes = 5
+podcast_mode = "auto"
+
+[[podcasts]]
+slug = "example-news"
+upstream_feed_url = "https://example.com/podcast/feed.xml"
+
+[ffmpeg]
+binary = "ffmpeg"
+```
+
+Example laptop or server-specific config:
+
+```toml
+# config.toml
+include = "config.shared.toml"
+
+base_url = "https://podfix.example.com"
+output_dir = "./output"
+```
+
+Merge behavior:
+
+- included files are loaded first
+- the current file overrides scalar values and tables from included files
+- `[[podcasts]]` entries from included files are preserved and appended to any local `[[podcasts]]` entries
+- include paths can be a single string or a list of strings
+
 Important config values:
 
 - `base_url`: public base URL where podcast pages, feeds, and episodes will be served
 - `output_dir`: root for generated data
+- `include`: optional string or list of TOML files to merge before the current file
 - `keep_original_downloads`: if `true`, keep the original downloaded source files for debugging
 - `cache_artwork`: if `true`, artwork is cached locally without modification
 - `badge_artwork`: if `true`, artwork is cached locally and stamped with a blue `COMPRESSED` badge

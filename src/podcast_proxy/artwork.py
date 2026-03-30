@@ -15,6 +15,7 @@ BADGE_COLOR = "#1F6BFF"
 TEXT_COLOR = "#FFFFFF"
 BADGE_BORDER = "#FFFFFF"
 BADGE_SHADOW = (0, 0, 0, 80)
+MAX_ARTWORK_SIZE = (200, 200)
 
 
 def process_artwork(
@@ -31,11 +32,12 @@ def process_artwork(
     destination = config.public_images_dir / filename
 
     image = Image.open(BytesIO(response.content)).convert("RGBA")
+    image = _resize_for_public_artwork(image)
     badged = _add_badge(image)
     if extension.lower() in {".jpg", ".jpeg"}:
-        badged.convert("RGB").save(destination, quality=95)
+        badged.convert("RGB").save(destination, quality=85, optimize=True)
     else:
-        badged.save(destination)
+        badged.save(destination, optimize=True)
     return f"{config.public_base_url}/images/{filename}"
 
 
@@ -94,6 +96,12 @@ def _add_badge(image: Image.Image) -> Image.Image:
         anchor="lt",
     )
     return image
+
+
+def _resize_for_public_artwork(image: Image.Image) -> Image.Image:
+    resized = image.copy()
+    resized.thumbnail(MAX_ARTWORK_SIZE, Image.Resampling.LANCZOS)
+    return resized
 
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:

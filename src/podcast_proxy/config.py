@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import tomllib
+from typing import Any
 
 from .utils import sanitize_filename
 
@@ -151,7 +152,7 @@ class AppConfig:
 
 def load_config(path: str | Path) -> AppConfig:
     config_path = Path(path)
-    raw = tomllib.loads(config_path.read_text(encoding="utf-8"))
+    raw = _load_raw_config(config_path.resolve(), seen=set())
 
     base_url = str(raw["base_url"]).rstrip("/")
     output_dir = Path(raw["output_dir"]).expanduser()
@@ -210,43 +211,98 @@ def load_config(path: str | Path) -> AppConfig:
     return app_config
 
 
+def _load_raw_config(path: Path, *, seen: set[Path]) -> dict[str, Any]:
+    resolved = path.resolve()
+    if resolved in seen:
+        raise ValueError(f"config include cycle detected at {resolved}")
+    seen.add(resolved)
+    try:
+        raw = tomllib.loads(resolved.read_text(encoding="utf-8"))
+        merged: dict[str, Any] = {}
+        includes = raw.pop("include", [])
+        include_paths = _normalize_includes(includes)
+        for include_name in include_paths:
+            include_path = (resolved.parent / include_name).resolve()
+            included = _load_raw_config(include_path, seen=seen)
+            merged = _merge_config_dicts(merged, included)
+        return _merge_config_dicts(merged, raw)
+    finally:
+        seen.remove(resolved)
+
+
+def _normalize_includes(value: object) -> list[str]:
+    if value in (None, ""):
+        return []
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        includes: list[str] = []
+        for item in value:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError("config include entries must be non-empty strings")
+            includes.append(item)
+        return includes
+    raise ValueError("config include must be a string or list of strings")
+
+
+def _merge_config_dicts(
+    base: dict[str, Any],
+    override: dict[str, Any],
+) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        if key not in merged:
+            merged[key] = value
+            continue
+        current = merged[key]
+        if isinstance(current, dict) and isinstance(value, dict):
+            merged[key] = _merge_config_dicts(current, value)
+        elif key == "podcasts" and isinstance(current, list) and isinstance(value, list):
+            merged[key] = [*current, *value]
+        else:
+            merged[key] = value
+    return merged
+
+
 def _parse_http(raw: dict[str, object]) -> HTTPConfig:
+    defaults = HTTPConfig()
     return HTTPConfig(
-        user_agent=str(raw.get("user_agent", HTTPConfig.user_agent)),
-        timeout_seconds=float(raw.get("timeout_seconds", HTTPConfig.timeout_seconds)),
-        retries=int(raw.get("retries", HTTPConfig.retries)),
+        user_agent=str(raw.get("user_agent", defaults.user_agent)),
+        timeout_seconds=float(raw.get("timeout_seconds", defaults.timeout_seconds)),
+        retries=int(raw.get("retries", defaults.retries)),
     )
 
 
 def _parse_ffmpeg(raw: dict[str, object]) -> FFMpegConfig:
+    defaults = FFMpegConfig()
     return FFMpegConfig(
-        binary=str(raw.get("binary", FFMpegConfig.binary)),
-        highpass_hz=int(raw.get("highpass_hz", FFMpegConfig.highpass_hz)),
-        lowpass_hz=int(raw.get("lowpass_hz", FFMpegConfig.lowpass_hz)),
+        binary=str(raw.get("binary", defaults.binary)),
+        highpass_hz=int(raw.get("highpass_hz", defaults.highpass_hz)),
+        lowpass_hz=int(raw.get("lowpass_hz", defaults.lowpass_hz)),
         compressor_threshold_db=int(
             raw.get(
                 "compressor_threshold_db",
-                FFMpegConfig.compressor_threshold_db,
+                defaults.compressor_threshold_db,
             )
         ),
-        compressor_ratio=str(raw.get("compressor_ratio", FFMpegConfig.compressor_ratio)),
-        attack_ms=int(raw.get("attack_ms", FFMpegConfig.attack_ms)),
-        release_ms=int(raw.get("release_ms", FFMpegConfig.release_ms)),
-        sample_rate_hz=int(raw.get("sample_rate_hz", FFMpegConfig.sample_rate_hz)),
-        bitrate_kbps=int(raw.get("bitrate_kbps", FFMpegConfig.bitrate_kbps)),
-        channels=int(raw.get("channels", FFMpegConfig.channels)),
-        normalize=bool(raw.get("normalize", FFMpegConfig.normalize)),
+        compressor_ratio=str(raw.get("compressor_ratio", defaults.compressor_ratio)),
+        attack_ms=int(raw.get("attack_ms", defaults.attack_ms)),
+        release_ms=int(raw.get("release_ms", defaults.release_ms)),
+        sample_rate_hz=int(raw.get("sample_rate_hz", defaults.sample_rate_hz)),
+        bitrate_kbps=int(raw.get("bitrate_kbps", defaults.bitrate_kbps)),
+        channels=int(raw.get("channels", defaults.channels)),
+        normalize=bool(raw.get("normalize", defaults.normalize)),
         loudness_target_lufs=float(
             raw.get(
                 "loudness_target_lufs",
-                FFMpegConfig.loudness_target_lufs,
+                defaults.loudness_target_lufs,
             )
         ),
-        true_peak_db=float(raw.get("true_peak_db", FFMpegConfig.true_peak_db)),
+        true_peak_db=float(raw.get("true_peak_db", defaults.true_peak_db)),
         loudness_range_target=float(
             raw.get(
                 "loudness_range_target",
-                FFMpegConfig.loudness_range_target,
+                defaults.loudness_range_target,
             )
         ),
     )

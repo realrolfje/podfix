@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_DIR="/Users/rolf/dockers/ngnix-slim/static/podfix"
-CONFIG_FILE="$PROJECT_DIR/config.toml"
+CONFIG_FILE="$PROJECT_DIR/config.server.toml"
 VENV_PYTHON="$PROJECT_DIR/.venv/bin/python"
 
 cd "$PROJECT_DIR"
