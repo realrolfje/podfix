@@ -36,17 +36,31 @@ def _sync_podcast(config: PodcastConfig, rebuild: bool) -> dict[str, Any]:
     session = make_session(config)
     snapshot = fetch_feed(session, config, state)
     if snapshot.not_modified:
-        LOGGER.info("feed not modified for %s; regenerating from saved state", config.slug)
-        metadata = _normalize_metadata_urls(config, state.get("feed", {}).get("metadata", {}))
-        episode_records = _renderable_records(
-            state.get("episodes", {}).values(),
-            _resolved_mode(metadata),
-            config.max_episodes,
+        LOGGER.info(
+            "feed not modified for %s; checking current feed for backlog progress",
+            config.slug,
         )
-        episode_records = [_normalize_record_urls(config, record) for record in episode_records]
-        write_feed(config, metadata, episode_records)
-        write_podcast_index(config, metadata, episode_records)
-        return _podcast_summary(config, metadata, episode_records)
+        snapshot = fetch_feed(
+            session,
+            config,
+            state,
+            use_conditional_headers=False,
+        )
+        if snapshot.not_modified:
+            metadata = _normalize_metadata_urls(
+                config, state.get("feed", {}).get("metadata", {})
+            )
+            episode_records = _renderable_records(
+                state.get("episodes", {}).values(),
+                _resolved_mode(metadata),
+                config.max_episodes,
+            )
+            episode_records = [
+                _normalize_record_urls(config, record) for record in episode_records
+            ]
+            write_feed(config, metadata, episode_records)
+            write_podcast_index(config, metadata, episode_records)
+            return _podcast_summary(config, metadata, episode_records)
 
     metadata = dict(snapshot.metadata)
     if metadata.get("image_url") and (config.cache_artwork or config.badge_artwork):

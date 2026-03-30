@@ -58,12 +58,14 @@ def fetch_feed(
     session: requests.Session,
     config: PodcastConfig,
     previous_state: dict[str, Any],
+    *,
+    use_conditional_headers: bool = True,
 ) -> FeedSnapshot:
     headers: dict[str, str] = {}
     feed_state = previous_state.get("feed", {})
-    if feed_state.get("etag"):
+    if use_conditional_headers and feed_state.get("etag"):
         headers["If-None-Match"] = feed_state["etag"]
-    if feed_state.get("last_modified"):
+    if use_conditional_headers and feed_state.get("last_modified"):
         headers["If-Modified-Since"] = feed_state["last_modified"]
 
     response = session.get(
