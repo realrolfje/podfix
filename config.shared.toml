@@ -52,6 +52,47 @@ upstream_feed_url = "https://podcast.npo.nl/feed/de-rolverdeling.xml"
 podcast_mode = "story"
 max_episodes = "unlimited"
 
+[[podcasts]]
+slug = "de-erfenis-van-engel"
+upstream_feed_url = "https://www.omnycontent.com/d/playlist/33dbd2dc-d464-471d-9feb-abae00330078/2f81f9eb-88f5-4e5f-8376-b0fb00b6ca55/1ef1e875-75ea-4d29-840c-b0fb00ddff53/podcast.rss"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "de-waanzinnige-belofte"
+upstream_feed_url = "https://omny.fm/shows/de-waanzinnige-belofte/playlists/podcast.rss"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "het-geluk-van-limburg"
+upstream_feed_url = "https://podcast.npo.nl/feed/de-laatste-dans.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "onkruid-in-het-paradijs"
+upstream_feed_url = "https://podcast.npo.nl/feed/onkruid-in-het-paradijs.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "op-zoek-naar-marlotte"
+upstream_feed_url = "https://podcast.npo.nl/feed/zembla-podcast.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "oom-matje"
+upstream_feed_url = "https://podcast.npo.nl/feed/tante-jos.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "universiteit-van-nederland"
+upstream_feed_url = "https://omny.fm/shows/de-universiteit-van-nederland-podcast/playlists/podcast.rss"
+podcast_mode = "news"
+
 [http]
 user_agent = "podcast-proxy/0.1"
 timeout_seconds = 30

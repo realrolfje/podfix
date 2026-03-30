@@ -105,7 +105,7 @@ def write_podcast_index(
     <section class="hero">
       <div>{image_markup}</div>
       <div>
-        <p class="eyebrow"><a href="{escape(home_href)}">Podcast Library</a></p>
+        <p class="eyebrow"><a href="{escape(home_href)}">Podfixed:</a></p>
         <h1>{title}</h1>
         <p class="lede">{description}</p>
         <div class="actions">
@@ -148,14 +148,14 @@ def write_library_index(app_config: AppConfig, podcasts: list[dict[str, Any]]) -
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Podcast Library</title>
+  <title>Podfix Library</title>
   <style>{_shared_css()}</style>
 </head>
 <body>
   <main>
     <section class="hero hero-library">
       <div>
-        <h1>Podcast Library</h1>
+        <h1>PodcPodfix Library</h1>
         <p class="lede">Below is a list of podcasts which are post-processed so that speech is 
         clear and of equal level between speakers as much as possible. The bitrate is also reduced
         to a more storage- and network friendly size. Click on "Open show page" 

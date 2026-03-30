@@ -44,8 +44,6 @@ def _sync_podcast(
 ) -> dict[str, Any]:
     state_store = StateStore(config.state_file)
     state = state_store.load()
-    if rebuild:
-        state = {"episodes": {}, "feed": {}}
 
     session = make_session(config)
     snapshot = fetch_feed(session, config, state)
@@ -136,18 +134,25 @@ def _sync_podcast(
             if previous:
                 next_episode_state[episode.guid] = previous
 
-    next_episode_state = _prune_episode_state(
-        snapshot.episodes,
-        next_episode_state,
-        snapshot.resolved_mode,
-        config.max_episodes,
-    )
-    ordered_records = _ordered_records(
-        snapshot.episodes,
-        next_episode_state,
-        snapshot.resolved_mode,
-        config.max_episodes,
-    )
+    if rebuild:
+        ordered_records = _renderable_records(
+            next_episode_state.values(),
+            snapshot.resolved_mode,
+            config.max_episodes,
+        )
+    else:
+        next_episode_state = _prune_episode_state(
+            snapshot.episodes,
+            next_episode_state,
+            snapshot.resolved_mode,
+            config.max_episodes,
+        )
+        ordered_records = _ordered_records(
+            snapshot.episodes,
+            next_episode_state,
+            snapshot.resolved_mode,
+            config.max_episodes,
+        )
     ordered_records = [_normalize_record_urls(config, record) for record in ordered_records]
     metadata = _normalize_metadata_urls(config, metadata)
     write_feed(config, metadata, ordered_records)
@@ -322,7 +327,7 @@ def _episodes_to_process(
     rebuild: bool,
 ) -> list[Episode]:
     if rebuild:
-        return _eligible_feed_window(episodes, resolved_mode, max_episodes)
+        return _episodes_to_rebuild(episodes, episode_state)
     if not episodes:
         return []
     if resolved_mode == "news":
@@ -332,6 +337,16 @@ def _episodes_to_process(
         if not previous or not _record_matches_episode(previous, episode):
             return [episode]
     return []
+
+
+def _episodes_to_rebuild(
+    episodes: list[Episode],
+    episode_state: dict[str, dict[str, Any]],
+) -> list[Episode]:
+    known_guids = set(episode_state)
+    if not known_guids:
+        return []
+    return [episode for episode in episodes if episode.guid in known_guids]
 
 
 def _eligible_feed_window(
