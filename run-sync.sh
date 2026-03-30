@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR="/Users/rolf/temp/podfix"
+PROJECT_DIR="/Users/rolf/dockers/ngnix-slim/static/podfix"
 CONFIG_FILE="$PROJECT_DIR/config.toml"
 VENV_PYTHON="$PROJECT_DIR/.venv/bin/python"
 
