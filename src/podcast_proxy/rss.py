@@ -31,6 +31,7 @@ def write_feed(
     _text(channel, f"{{{ITUNES_NS}}}author", metadata.get("author"))
     _text(channel, f"{{{ITUNES_NS}}}summary", metadata.get("description", ""))
     _text(channel, f"{{{ITUNES_NS}}}explicit", metadata.get("explicit"))
+    _text(channel, f"{{{ITUNES_NS}}}type", _itunes_type(metadata))
     if metadata.get("category"):
         category = ET.SubElement(channel, f"{{{ITUNES_NS}}}category")
         category.set("text", str(metadata["category"]))
@@ -185,6 +186,18 @@ def _text(parent: ET.Element, tag: str, value: Any) -> None:
         return
     element = ET.SubElement(parent, tag)
     element.text = str(value)
+
+
+def _itunes_type(metadata: dict[str, Any]) -> str | None:
+    feed_type = str(metadata.get("itunes_type") or "").strip().lower()
+    if feed_type in {"serial", "episodic"}:
+        return feed_type
+    resolved_mode = str(metadata.get("resolved_mode") or "").strip().lower()
+    if resolved_mode == "story":
+        return "serial"
+    if resolved_mode == "news":
+        return "episodic"
+    return None
 
 
 def _episode_card(

@@ -153,6 +153,8 @@ Mode behavior:
 - `news`: on each `sync`, process only the single newest upstream episode; generated feeds and show pages are ordered newest to oldest
 - `story`: on each `sync`, process only the single oldest not-yet-synced episode; generated feeds and show pages are ordered oldest to newest
 - `auto`: use RSS metadata when available; currently `itunes:type = serial` maps to `story`, otherwise it falls back to `news`
+- `max_episodes` with `news`: keep the newest `N` synced episodes and prune anything older
+- `max_episodes` with `story`: work only within the oldest `N` upstream episodes; newer episodes are ignored until you raise the limit or use `"unlimited"`
 - `max_episodes = "unlimited"`: keep all synced episodes in the generated feed and show page, which is useful for documentaries and serialized archives
 
 Audio tuning:
@@ -258,7 +260,9 @@ Normalization notes:
 - `sync` processes at most one episode per podcast on each run.
 - For `news` podcasts that one episode is the newest upstream item.
 - For `story` podcasts that one episode is the oldest not-yet-synced item inside the configured episode window.
-- `max_episodes` controls how many synced episodes are retained in the generated feed and show page. Use `"unlimited"` to keep all of them.
+- For `news`, the episode window is the newest `max_episodes` items.
+- For `story`, the episode window is the oldest `max_episodes` items.
+- Use `max_episodes = "unlimited"` to let `story` feeds backfill the full archive.
 - `rebuild` always re-fetches the selected episode window and re-encodes the output MP3s, per podcast.
 - `rebuild-images` always re-fetches the selected episode window and regenerates artwork for already-synced episodes without running `ffmpeg`.
 - Failed episode downloads or transcodes are logged and skipped.

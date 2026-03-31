@@ -77,6 +77,7 @@ def _sync_podcast(
     metadata = _process_metadata_artwork(session, config, dict(snapshot.metadata))
 
     episode_state = dict(state.get("episodes", {}))
+    previous_mode = _resolved_mode(state.get("feed", {}).get("metadata", {}))
     next_episode_state: dict[str, dict[str, Any]] = dict(episode_state)
     if rebuild_images:
         next_episode_state = _rebuild_episode_artwork(
@@ -92,6 +93,7 @@ def _sync_podcast(
             snapshot.episodes,
             episode_state,
             snapshot.resolved_mode,
+            previous_mode,
             config.max_episodes,
             rebuild,
         )
@@ -323,6 +325,7 @@ def _episodes_to_process(
     episodes: list[Episode],
     episode_state: dict[str, dict[str, Any]],
     resolved_mode: str,
+    previous_mode: str,
     max_episodes: int | None,
     rebuild: bool,
 ) -> list[Episode]:
@@ -332,6 +335,11 @@ def _episodes_to_process(
         return []
     if resolved_mode == "news":
         return [episodes[0]]
+    if resolved_mode == "story" and previous_mode != "story":
+        for episode in episodes:
+            previous = episode_state.get(episode.guid)
+            if not previous or not _record_matches_episode(previous, episode):
+                return [episode]
     for episode in _eligible_feed_window(episodes, resolved_mode, max_episodes):
         previous = episode_state.get(episode.guid)
         if not previous or not _record_matches_episode(previous, episode):
