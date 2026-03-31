@@ -116,7 +116,7 @@ def write_podcast_index(
             <span class="rss-icon" aria-hidden="true">{_rss_icon()}</span>
             <span>Open RSS</span>
           </a>
-          <button class="link rss-link copy-feed" type="button" data-feed-url="{escape(feed_url)}" aria-label="Copy RSS feed URL">
+          <button class="link copy-feed" type="button" data-feed-url="{escape(feed_url)}" aria-label="Copy RSS feed URL">
             <span class="rss-icon" aria-hidden="true">{_rss_icon()}</span>
             <span>Copy RSS Link</span>
           </button>
@@ -256,7 +256,7 @@ def _podcast_card(card: dict[str, Any]) -> str:
         f"<p class=\"meta\">{episodes} published episode{'s' if episodes != 1 else ''}</p>"
         "<div class=\"actions\">"
         f"<a class=\"button\" href=\"{index_url}\">Open show page</a>"
-        f"<button class=\"link rss-link copy-feed\" type=\"button\" data-feed-url=\"{feed_url}\" aria-label=\"Copy RSS feed URL\"><span class=\"rss-icon\" aria-hidden=\"true\">{_rss_icon()}</span><span>Copy RSS Link</span></button>"
+        f"<button class=\"link copy-feed\" type=\"button\" data-feed-url=\"{feed_url}\" aria-label=\"Copy RSS feed URL\"><span class=\"rss-icon\" aria-hidden=\"true\">{_rss_icon()}</span><span>Copy RSS Link</span></button>"
         "</div>"
         "</div>"
         "</article>"
@@ -280,7 +280,11 @@ def _resolved_mode_label(data: dict[str, Any]) -> str:
 
 
 def _mode_badge(label: str, extra_class: str) -> str:
-    return f'<span class="mode-badge {escape(extra_class)}">{escape(label)}</span>'
+    variant = {
+        "Series": "mode-badge-series",
+        "News": "mode-badge-news",
+    }.get(label, "mode-badge-default")
+    return f'<span class="mode-badge {escape(extra_class)} {variant}">{escape(label)}</span>'
 
 
 def _shared_css() -> str:
@@ -337,14 +341,24 @@ def _shared_css() -> str:
       min-width: 1px;
       padding: 1px 5px;
       border-radius: 999px;
-      background: rgba(31, 27, 22, 0.08);
-      border: 1px solid rgba(31, 27, 22, 0.12);
-      color: #5f5a52;
+      color: #3f3a34;
       font-size: 0.78rem;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       backdrop-filter: blur(8px);
+    }
+    .mode-badge-news {
+      background: rgba(246, 208, 118, 0.72);
+      border: 1px solid rgba(190, 145, 31, 0.28);
+    }
+    .mode-badge-series {
+      background: rgba(167, 214, 181, 0.78);
+      border: 1px solid rgba(74, 130, 91, 0.26);
+    }
+    .mode-badge-default {
+      background: rgba(31, 27, 22, 0.08);
+      border: 1px solid rgba(31, 27, 22, 0.12);
     }
     .mode-badge-hero {
       top: 24px;
@@ -412,7 +426,7 @@ def _shared_css() -> str:
     .link {
       color: var(--ink);
       border: 1px solid var(--line);
-      background: rgba(255, 255, 255, 0.6);
+      background: rgb(246 208 118 / 60%);
     }
     button.link {
       appearance: none;
