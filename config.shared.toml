@@ -99,7 +99,7 @@ timeout_seconds = 30
 retries = 2
 
 [ffmpeg]
-binary = "ffmpeg"
+binary = "/opt/homebrew/bin/ffmpeg"
 highpass_hz = 300
 lowpass_hz = 3400
 compressor_threshold_db = -50
