@@ -102,14 +102,19 @@ def _sync_podcast(
         previous = episode_state.get(episode.guid)
         signature = _episode_signature(episode)
         if previous and _record_matches_episode(previous, episode) and not rebuild:
-            LOGGER.info("skip existing episode for %s: %s", config.slug, episode.title)
-            _ensure_public_copy(config, previous)
-            next_episode_state[episode.guid] = {
-                **previous,
-                "signature": signature,
-                "source_signature": _source_signature(episode),
-            }
-            continue
+            if _has_public_copy(config, previous):
+                LOGGER.info("skip existing episode for %s: %s", config.slug, episode.title)
+                next_episode_state[episode.guid] = {
+                    **previous,
+                    "signature": signature,
+                    "source_signature": _source_signature(episode),
+                }
+                continue
+            LOGGER.warning(
+                "public episode missing for %s, rebuilding: %s",
+                config.slug,
+                episode.title,
+            )
         try:
             LOGGER.info("processing %s: %s", config.slug, episode.title)
             image_url = _process_episode_artwork(session, config, episode.image_url)
@@ -289,13 +294,12 @@ def _normalize_local_episode_url(config: PodcastConfig, url: str) -> str:
     return str(url)
 
 
-def _ensure_public_copy(config: PodcastConfig, record: dict[str, Any]) -> None:
+def _has_public_copy(config: PodcastConfig, record: dict[str, Any]) -> bool:
     processed_name = record.get("processed_file")
     if not processed_name:
-        return
+        return False
     public_path = config.public_episodes_dir / processed_name
-    if not public_path.exists():
-        LOGGER.warning("expected public episode is missing: %s", public_path.name)
+    return public_path.exists()
 
 
 def _episode_signature(episode: Episode) -> str:
@@ -334,8 +338,6 @@ def _episodes_to_process(
         return _episodes_to_rebuild(episodes, episode_state)
     if not episodes:
         return []
-    if resolved_mode == "news":
-        return [episodes[0]]
     if resolved_mode == "story" and previous_mode != "story":
         for episode in episodes:
             previous = episode_state.get(episode.guid)
