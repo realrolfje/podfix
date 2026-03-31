@@ -83,6 +83,7 @@ def write_podcast_index(
         image_markup = (
             f'<img class="cover" src="{escape(_relative_podcast_image_url(config, str(image_url)))}" alt="{title} cover art">'
         )
+    mode_badge = _mode_badge(_resolved_mode_label(metadata), "mode-badge-hero")
 
     items_markup = "\n".join(
         _episode_card(record, fallback_image_url=image_url, config=config)
@@ -104,6 +105,7 @@ def write_podcast_index(
 <body>
   <main>
     <section class="hero">
+      {mode_badge}
       <div>{image_markup}</div>
       <div>
         <p class="eyebrow"><a href="{escape(home_href)}">Podfixed:</a></p>
@@ -238,6 +240,7 @@ def _podcast_card(card: dict[str, Any]) -> str:
     index_url = escape(f"{slug}/index.html" if slug else "index.html")
     image_url = card.get("image_url")
     episodes = int(card.get("episode_count", 0))
+    mode_badge = _mode_badge(_resolved_mode_label(card), "mode-badge-card")
     image_markup = ""
     if image_url:
         image_markup = (
@@ -245,6 +248,7 @@ def _podcast_card(card: dict[str, Any]) -> str:
         )
     return (
         "<article class=\"podcast-card\">"
+        f"{mode_badge}"
         f"{image_markup}"
         "<div class=\"podcast-copy\">"
         f"<h3 class=\"podcast-title\"><a href=\"{index_url}\">{title}</a></h3>"
@@ -266,13 +270,26 @@ def _plain_text(value: Any) -> str:
     return text
 
 
+def _resolved_mode_label(data: dict[str, Any]) -> str:
+    mode = str(data.get("resolved_mode") or data.get("podcast_mode") or "").strip().lower()
+    if mode == "story":
+        return "Series"
+    if mode == "news":
+        return "News"
+    return "Podcast"
+
+
+def _mode_badge(label: str, extra_class: str) -> str:
+    return f'<span class="mode-badge {escape(extra_class)}">{escape(label)}</span>'
+
+
 def _shared_css() -> str:
     return """
     :root {
       --bg: #f6f4ef;
       --card: #fffdf7;
       --ink: #1f1b16;
-      --muted: #6c6257;
+      --muted: ##afadab;
       --accent: #0c63ff;
       --accent-ink: #ffffff;
       --line: rgba(31, 27, 22, 0.08);
@@ -297,6 +314,7 @@ def _shared_css() -> str:
       grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
       gap: 28px;
       align-items: center;
+      position: relative;
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 28px;
@@ -310,6 +328,31 @@ def _shared_css() -> str:
       width: 100%;
       display: block;
       border-radius: 22px;
+    }
+    .mode-badge {
+      position: absolute;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1px;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: rgba(31, 27, 22, 0.08);
+      border: 1px solid rgba(31, 27, 22, 0.12);
+      color: #5f5a52;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      backdrop-filter: blur(8px);
+    }
+    .mode-badge-hero {
+      top: 24px;
+      right: 24px;
+    }
+    .mode-badge-card {
+      top: 4px;
+      right: 0;
     }
     h1 {
       margin: 0 0 12px;
@@ -353,8 +396,8 @@ def _shared_css() -> str:
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 48px;
-      padding: 0 18px;
+      min-height: 40px;
+      padding: 0 15px;
       border-radius: 999px;
       text-decoration: none;
       font-weight: 700;
@@ -459,6 +502,7 @@ def _shared_css() -> str:
       gap: 18px;
     }
     .podcast-card {
+      position: relative;
       display: grid;
       grid-template-columns: 160px minmax(0, 1fr);
       gap: 18px;
@@ -471,6 +515,7 @@ def _shared_css() -> str:
       padding-top: 0;
     }
     .podcast-copy {
+      padding: 0.5em;
       min-width: 0;
     }
     .empty {
@@ -480,6 +525,17 @@ def _shared_css() -> str:
     @media (max-width: 760px) {
       .hero, .podcast-card {
         grid-template-columns: 1fr;
+      }
+      .mode-badge {
+        right: 16px;
+        min-width: 1px;
+        padding: 1px 5px;
+      }
+      .mode-badge-hero {
+        top: 16px;
+      }
+      .mode-badge-card {
+        top: 0;
       }
       .episode {
         grid-template-columns: 56px minmax(0, 1fr);

@@ -240,6 +240,7 @@ def _podcast_summary(
         "title": metadata.get("title", config.slug),
         "description": metadata.get("description", ""),
         "image_url": metadata.get("image_url"),
+        "resolved_mode": _resolved_mode(metadata),
         "feed_url": config.feed_url,
         "index_url": config.index_url,
         "episode_count": len(episode_records),
