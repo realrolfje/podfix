@@ -1,0 +1,16 @@
+base_url = "http://localhost:8080"
+output_dir = "./output-test"
+
+keep_original_downloads = false
+cache_artwork = false
+badge_artwork = true
+max_episodes = 5
+podcast_mode = "auto"
+
+[[podcasts]]
+slug = "alledaagse-vragen"
+upstream_feed_url = "https://podcast.npo.nl/feed/alicante.xml"
+podcast_mode = "news"
+
+[ffmpeg]
+binary = "/opt/homebrew/bin/ffmpeg"

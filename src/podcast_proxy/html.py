@@ -106,7 +106,7 @@ def write_library_index(app_config: AppConfig, podcasts: list[dict[str, Any]]) -
         <h1>Podfix Library</h1>
         <p class="lede">Below is a list of podcasts which are post-processed so that speech is
         clear and of equal level between speakers as much as possible. The bitrate is also reduced
-        to a more storage- and network friendly size. Click on "Open show page"
+        to a more storage- and network friendly size. Click a show image
         for details per show, or use the "Copy RSS Link" to add the link to your favourite podcast
         app. Please remember to support the autors of the podcasts below by subscribing to their
         affeliate programs (Podimo, Patreon, Soundcloud, or socials).</p>
@@ -181,7 +181,9 @@ def _podcast_card(card: dict[str, Any]) -> str:
     image_markup = ""
     if image_url:
         image_markup = (
+            f'<a class="podcast-cover-link" href="{index_url}" aria-label="Open {title} show page">'
             f'<img class="podcast-cover" src="{escape(f"{slug}/images/{Path(str(image_url)).name}" if slug else str(image_url))}" alt="{title} cover art">'
+            "</a>"
         )
     return (
         f"<article class=\"podcast-card\" data-search-text=\"{search_text}\">"
@@ -192,7 +194,6 @@ def _podcast_card(card: dict[str, Any]) -> str:
         f"<p class=\"lede lede-small\">{description}</p>"
         f"<p class=\"meta\">{episodes} published episode{'s' if episodes != 1 else ''}</p>"
         "<div class=\"actions\">"
-        f"<a class=\"button\" href=\"{index_url}\">Open show page</a>"
         f"<button class=\"link copy-feed\" type=\"button\" data-feed-url=\"{feed_url}\" aria-label=\"Copy RSS feed URL\"><span class=\"rss-icon\" aria-hidden=\"true\">{_rss_icon()}</span><span>Copy RSS Link</span></button>"
         "</div>"
         "</div>"
@@ -269,6 +270,14 @@ def _shared_css() -> str:
       width: 100%;
       display: block;
       border-radius: 22px;
+    }
+    .podcast-cover-link {
+      display: block;
+      border-radius: 22px;
+    }
+    .podcast-cover-link:focus-visible {
+      outline: 3px solid rgba(12, 99, 255, 0.35);
+      outline-offset: 4px;
     }
     .mode-badge {
       position: absolute;

@@ -18,17 +18,26 @@ def download_media(
     destination = config.downloads_dir / f"{episode.slug}{suffix}"
     if destination.exists():
         return destination
+    temp_path = _temporary_path(destination)
+    if temp_path.exists():
+        temp_path.unlink()
 
-    with session.get(
-        episode.enclosure_url,
-        timeout=config.http.timeout_seconds,
-        stream=True,
-    ) as response:
-        response.raise_for_status()
-        with destination.open("wb") as handle:
-            for chunk in response.iter_content(chunk_size=1024 * 64):
-                if chunk:
-                    handle.write(chunk)
+    try:
+        with session.get(
+            episode.enclosure_url,
+            timeout=config.http.timeout_seconds,
+            stream=True,
+        ) as response:
+            response.raise_for_status()
+            with temp_path.open("wb") as handle:
+                for chunk in response.iter_content(chunk_size=1024 * 64):
+                    if chunk:
+                        handle.write(chunk)
+        temp_path.replace(destination)
+    except BaseException:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
     return destination
 
 
@@ -51,18 +60,25 @@ def transcode_media_with_options(
     if public_path.exists() and not force:
         _cleanup_source(config, source_path)
         return public_path
-    if public_path.exists() and force:
-        public_path.unlink()
+    temp_path = _temporary_path(public_path)
+    if temp_path.exists():
+        temp_path.unlink()
 
-    command = build_ffmpeg_command(config, source_path, public_path, episode.source_kind)
-    completed = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if completed.returncode != 0:
-        raise RuntimeError(completed.stderr.strip() or "ffmpeg failed")
+    command = build_ffmpeg_command(config, source_path, temp_path, episode.source_kind)
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(completed.stderr.strip() or "ffmpeg failed")
+        temp_path.replace(public_path)
+    except BaseException:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise
 
     _cleanup_source(config, source_path)
     return public_path
@@ -120,3 +136,7 @@ def _cleanup_source(config: PodcastConfig, source_path: Path) -> None:
         return
     if source_path.exists():
         source_path.unlink()
+
+
+def _temporary_path(path: Path) -> Path:
+    return path.with_suffix(f"{path.suffix}.part")
