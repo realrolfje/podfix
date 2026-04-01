@@ -121,6 +121,12 @@ podcast_mode = "story"
 max_episodes = "unlimited"
 
 [[podcasts]]
+slug = "olaf-zit-vast"
+upstream_feed_url = "https://podcast.npo.nl/feed/argos-vriend-van-volkert.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
 slug = "oom-matje"
 upstream_feed_url = "https://podcast.npo.nl/feed/tante-jos.xml"
 podcast_mode = "story"
@@ -140,6 +146,12 @@ podcast_mode = "news"
 slug = "koningsbrugge-suriname"
 upstream_feed_url = "https://podcast.npo.nl/feed/kamp-van-koningsbrugge-suriname.xml"
 podcast_mode = "news"
+
+[[podcasts]]
+slug = "de-brand-in-het-landhuis"
+upstream_feed_url = "https://podcast.npo.nl/feed/de-brand-in-het-landhuis.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
 
 [http]
 user_agent = "podcast-proxy/0.1"
