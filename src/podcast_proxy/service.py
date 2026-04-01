@@ -22,20 +22,60 @@ def sync(
     config: AppConfig,
     rebuild: bool = False,
     rebuild_images: bool = False,
+    podcast_slugs: list[str] | None = None,
 ) -> Path:
     _cleanup_legacy_root_public(config)
-    summaries: list[dict[str, Any]] = []
-    for podcast in config.podcasts:
-        summaries.append(
+    selected_podcasts = _selected_podcasts(config, podcast_slugs)
+    summary_by_slug: dict[str, dict[str, Any]] = {}
+    for podcast in selected_podcasts:
+        summary_by_slug[podcast.slug] = (
             _sync_podcast(
                 podcast,
                 rebuild=rebuild,
                 rebuild_images=rebuild_images,
             )
         )
+    summaries: list[dict[str, Any]] = []
+    for podcast in config.podcasts:
+        summary = summary_by_slug.get(podcast.slug) or _summary_from_state(podcast)
+        if summary:
+            summaries.append(summary)
     summaries.sort(key=lambda item: str(item.get("title", "")).casefold())
     write_library_index(config, summaries)
     return config.public_index
+
+
+def _selected_podcasts(
+    config: AppConfig,
+    podcast_slugs: list[str] | None,
+) -> list[PodcastConfig]:
+    if not podcast_slugs:
+        return config.podcasts
+    requested = {slug.strip() for slug in podcast_slugs if slug.strip()}
+    selected = [podcast for podcast in config.podcasts if podcast.slug in requested]
+    found = {podcast.slug for podcast in selected}
+    missing = sorted(requested - found)
+    if missing:
+        available = ", ".join(sorted(podcast.slug for podcast in config.podcasts))
+        missing_display = ", ".join(missing)
+        raise ValueError(
+            f"unknown podcast slug(s): {missing_display}. Available slugs: {available}"
+        )
+    return selected
+
+
+def _summary_from_state(config: PodcastConfig) -> dict[str, Any] | None:
+    state = StateStore(config.state_file).load()
+    metadata = _normalize_metadata_urls(config, state.get("feed", {}).get("metadata", {}))
+    if not metadata:
+        return None
+    episode_records = _renderable_records(
+        state.get("episodes", {}).values(),
+        _resolved_mode(metadata),
+        config.max_episodes,
+    )
+    episode_records = [_normalize_record_urls(config, record) for record in episode_records]
+    return _podcast_summary(config, metadata, episode_records)
 
 
 def _sync_podcast(

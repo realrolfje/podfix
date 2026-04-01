@@ -195,10 +195,22 @@ Sync new items:
 PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli sync --config config.toml
 ```
 
+Sync only one show:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli sync --config config.toml --podcast dai-carter
+```
+
 Force a clean rebuild:
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild --config config.toml
+```
+
+Rebuild only one show:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild --config config.toml --podcast dai-carter
 ```
 
 `rebuild` force-overwrites existing public episode files and re-runs `ffmpeg`, so updated audio settings take effect even when filenames stay the same.
@@ -207,6 +219,12 @@ Rebuild artwork only:
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild-images --config config.toml
+```
+
+Rebuild artwork for one show only:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild-images --config config.toml --podcast dai-carter
 ```
 
 `rebuild-images` re-fetches the selected feed window, regenerates show and episode artwork for already-synced episodes, rewrites the public feed and show pages, and skips media download/transcode work.

@@ -17,12 +17,33 @@ def main() -> None:
 
     sync_parser = subparsers.add_parser("sync")
     sync_parser.add_argument("--config", required=True)
+    sync_parser.add_argument(
+        "--podcast",
+        action="append",
+        dest="podcasts",
+        default=[],
+        help="limit the run to one or more podcast slugs",
+    )
 
     rebuild_parser = subparsers.add_parser("rebuild")
     rebuild_parser.add_argument("--config", required=True)
+    rebuild_parser.add_argument(
+        "--podcast",
+        action="append",
+        dest="podcasts",
+        default=[],
+        help="limit the run to one or more podcast slugs",
+    )
 
     rebuild_images_parser = subparsers.add_parser("rebuild-images")
     rebuild_images_parser.add_argument("--config", required=True)
+    rebuild_images_parser.add_argument(
+        "--podcast",
+        action="append",
+        dest="podcasts",
+        default=[],
+        help="limit the run to one or more podcast slugs",
+    )
 
     serve_parser = subparsers.add_parser("serve")
     serve_parser.add_argument("--config", required=True)
@@ -36,19 +57,19 @@ def main() -> None:
 
     if args.command == "sync":
         config = load_config(args.config)
-        index_path = sync(config, rebuild=False)
+        index_path = sync(config, rebuild=False, podcast_slugs=args.podcasts)
         print(index_path)
         return
 
     if args.command == "rebuild":
         config = load_config(args.config)
-        index_path = sync(config, rebuild=True)
+        index_path = sync(config, rebuild=True, podcast_slugs=args.podcasts)
         print(index_path)
         return
 
     if args.command == "rebuild-images":
         config = load_config(args.config)
-        index_path = sync(config, rebuild_images=True)
+        index_path = sync(config, rebuild_images=True, podcast_slugs=args.podcasts)
         print(index_path)
         return
 
