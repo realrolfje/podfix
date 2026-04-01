@@ -104,6 +104,7 @@ upstream_feed_url = "https://example.com/documentary/feed.xml"
 podcast_mode = "story"
 max_episodes = 12
 keep_original_downloads = true
+ffmpeg = { compressor_threshold_db = -24, compressor_ratio = "6", loudness_target_lufs = -14 }
 ```
 
 You can also split config across files with `include`, which is useful for keeping shared podcast and `ffmpeg` settings in one file and machine-specific paths/URLs in another. Includes are resolved relative to the file that declares them.
@@ -165,6 +166,17 @@ Important config values:
 Per-podcast overrides:
 
 - Each `[[podcasts]]` entry can override `max_episodes`, `podcast_mode`, `cache_artwork`, `badge_artwork`, and `keep_original_downloads`.
+- Each `[[podcasts]]` entry can also override audio processing with an inline `ffmpeg = { ... }` table. Only the keys you specify are changed for that show; the rest inherit from the top-level `[ffmpeg]` settings.
+
+Example per-show `ffmpeg` override:
+
+```toml
+[[podcasts]]
+slug = "quiet-interviews"
+upstream_feed_url = "https://example.com/interviews/feed.xml"
+podcast_mode = "story"
+ffmpeg = { compressor_threshold_db = -24, compressor_ratio = "6", loudness_target_lufs = -14 }
+```
 
 Mode behavior:
 

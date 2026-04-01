@@ -308,6 +308,31 @@ def _parse_ffmpeg(raw: dict[str, object]) -> FFMpegConfig:
     )
 
 
+def _ffmpeg_overrides(base: FFMpegConfig, raw: object) -> FFMpegConfig:
+    if raw in (None, {}):
+        return base
+    if not isinstance(raw, dict):
+        raise ValueError("podcast ffmpeg override must be an inline table/object")
+    merged: dict[str, object] = {
+        "binary": base.binary,
+        "highpass_hz": base.highpass_hz,
+        "lowpass_hz": base.lowpass_hz,
+        "compressor_threshold_db": base.compressor_threshold_db,
+        "compressor_ratio": base.compressor_ratio,
+        "attack_ms": base.attack_ms,
+        "release_ms": base.release_ms,
+        "sample_rate_hz": base.sample_rate_hz,
+        "bitrate_kbps": base.bitrate_kbps,
+        "channels": base.channels,
+        "normalize": base.normalize,
+        "loudness_target_lufs": base.loudness_target_lufs,
+        "true_peak_db": base.true_peak_db,
+        "loudness_range_target": base.loudness_range_target,
+    }
+    merged.update(raw)
+    return _parse_ffmpeg(merged)
+
+
 def _parse_podcast(
     raw: dict[str, object],
     *,
@@ -337,7 +362,7 @@ def _parse_podcast(
         max_episodes=_parse_max_episodes(raw.get("max_episodes", max_episodes)),
         podcast_mode=_parse_podcast_mode(raw.get("podcast_mode", podcast_mode)),
         http=http,
-        ffmpeg=ffmpeg,
+        ffmpeg=_ffmpeg_overrides(ffmpeg, raw.get("ffmpeg")),
         legacy_root=legacy_root,
     )
 
