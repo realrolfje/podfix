@@ -116,7 +116,7 @@ binary = "ffmpeg"
 Example laptop or server-specific config:
 
 ```toml
-# config.toml
+# config.local.toml or config.server.toml
 include = "config.shared.toml"
 
 base_url = "https://podfix.example.com"
@@ -128,6 +128,12 @@ Merge behavior:
 - included files are loaded first
 - the current file overrides scalar values and tables from included files
 - `[[podcasts]]` entries from included files are preserved and appended to any local `[[podcasts]]` entries
+
+Recommended layout:
+
+- commit `config.shared.toml` plus `config.local.example.toml` and `config.server.example.toml`
+- keep real `config.local.toml` and `config.server.toml` untracked and machine-specific
+- copy the example file that matches the machine and adjust only `base_url` and `output_dir`
 - include paths can be a single string or a list of strings
 
 Important config values:
@@ -199,7 +205,13 @@ PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli serve --config config.toml 
 For scheduled syncs, use:
 
 ```bash
-/Users/rolf/temp/podfix/run-sync.sh
+./run-sync.sh
+```
+
+`run-sync.sh` uses `config.server.toml` in the repo by default. Override it per machine if needed:
+
+```bash
+CONFIG_FILE=/path/to/config.server.toml ./run-sync.sh
 ```
 
 Then open:

@@ -1,4 +1,0 @@
-include = "config.shared.toml"
-
-base_url = "http://static.rolfje.com/podfix/data/public"
-output_dir = "/Users/rolf/dockers/ngnix-slim/static/podfix"

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PROJECT_DIR="/Users/rolf/dockers/ngnix-slim/static/podfix"
-CONFIG_FILE="$PROJECT_DIR/config.server.toml"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$SCRIPT_DIR"
+CONFIG_FILE="${CONFIG_FILE:-$PROJECT_DIR/config.server.toml}"
 VENV_PYTHON="$PROJECT_DIR/.venv/bin/python"
 
 cd "$PROJECT_DIR"

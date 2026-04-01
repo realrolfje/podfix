@@ -1,0 +1,4 @@
+include = "config.shared.toml"
+
+base_url = "http://static.example.com/podfix/data/public"
+output_dir = "/absolute/path/to/podfix"

@@ -2,4 +2,3 @@ include = "config.shared.toml"
 
 base_url = "http://localhost:8080"
 output_dir = "./output"
-
