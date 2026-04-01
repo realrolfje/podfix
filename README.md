@@ -63,20 +63,15 @@ Serve `output/data/public/` with any static web server, or use the built-in conv
 
 ## Install
 
-```bash
-python3 -m venv .venv --system-site-packages
-source .venv/bin/activate
-```
-
-The project is typically run directly from the repo using the local virtual environment Python plus `PYTHONPATH=src`. This avoids depending on a globally installed `podcast-proxy` binary.
-
-Verify the local environment can run the CLI:
+Run Podfix through the included shell script:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli --help
+./podfix.sh --help
 ```
 
-For scheduler use, the repository includes [run-sync.sh](/Users/rolf/temp/podfix/run-sync.sh), which uses the local `.venv` and `config.toml`.
+On first run, `podfix.sh` creates `.venv` if needed, installs the project into it, and then forwards all arguments to the Python CLI.
+
+For scheduler use, the repository includes [run-sync.sh](./run-sync.sh), which calls `podfix.sh` with `config.server.toml` by default.
 
 If you still have an older globally installed `podcast-proxy` command and want to remove it:
 
@@ -86,7 +81,7 @@ If you still have an older globally installed `podcast-proxy` command and want t
 
 ## Configuration
 
-Copy [config.sample.toml](/Users/rolf/temp/podfix/config.sample.toml) to `config.toml` and adjust:
+Start from the included example files such as [config.local.example.toml](./config.local.example.toml) or [config.server.example.toml](./config.server.example.toml), then adjust:
 
 ```toml
 base_url = "https://podfix.example.com"
@@ -192,25 +187,25 @@ Audio tuning:
 Sync new items:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli sync --config config.toml
+./podfix.sh sync --config config.toml
 ```
 
 Sync only one show:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli sync --config config.toml --podcast dai-carter
+./podfix.sh sync --config config.toml --podcast dai-carter
 ```
 
 Force a clean rebuild:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild --config config.toml
+./podfix.sh rebuild --config config.toml
 ```
 
 Rebuild only one show:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild --config config.toml --podcast dai-carter
+./podfix.sh rebuild --config config.toml --podcast dai-carter
 ```
 
 `rebuild` force-overwrites existing public episode files and re-runs `ffmpeg`, so updated audio settings take effect even when filenames stay the same.
@@ -218,13 +213,13 @@ PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild --config config.tom
 Rebuild artwork only:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild-images --config config.toml
+./podfix.sh rebuild-images --config config.toml
 ```
 
 Rebuild artwork for one show only:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild-images --config config.toml --podcast dai-carter
+./podfix.sh rebuild-images --config config.toml --podcast dai-carter
 ```
 
 `rebuild-images` re-fetches the selected feed window, regenerates show and episode artwork for already-synced episodes, rewrites the public feed and show pages, and skips media download/transcode work.
@@ -232,19 +227,7 @@ PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli rebuild-images --config con
 Serve the generated feed locally:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m podcast_proxy.cli serve --config config.toml --port 8080
-```
-
-For scheduled syncs, use:
-
-```bash
-./run-sync.sh
-```
-
-`run-sync.sh` uses `config.server.toml` in the repo by default. Override it per machine if needed:
-
-```bash
-CONFIG_FILE=/path/to/config.server.toml ./run-sync.sh
+./podfix.sh serve --config config.toml --port 8080
 ```
 
 Then open:
@@ -265,34 +248,24 @@ For podcast apps, use:
 http://localhost:8080/<slug>/feed.xml
 ```
 
-## ffmpeg commands
 
-Audio input:
+## Scheduling synchronization
 
-```bash
-ffmpeg -y -i INPUT_AUDIO \
-  -af "highpass=f=300,lowpass=f=3400,acompressor=threshold=THRESHOLDdB:ratio=RATIO:attack=ATTACK:release=RELEASE,loudnorm=I=TARGET_LUFS:TP=TRUE_PEAK:LRA=LOUDNESS_RANGE" \
-  -ar 22050 \
-  -ac CHANNELS \
-  -b:a BITRATE \
-  -codec:a libmp3lame \
-  OUTPUT.mp3
-```
-
-Video input:
+For scheduled syncs, there is a script you can directly call from your `cron` schedule:
 
 ```bash
-ffmpeg -y -i INPUT_VIDEO \
-  -vn \
-  -af "highpass=f=300,lowpass=f=3400,acompressor=threshold=THRESHOLDdB:ratio=RATIO:attack=ATTACK:release=RELEASE,loudnorm=I=TARGET_LUFS:TP=TRUE_PEAK:LRA=LOUDNESS_RANGE" \
-  -ar 22050 \
-  -ac CHANNELS \
-  -b:a BITRATE \
-  -codec:a libmp3lame \
-  OUTPUT.mp3
+./run-sync.sh
 ```
 
-The actual values come from the `[ffmpeg]` config section in your config file.
+`run-sync.sh` uses `config.server.toml` in the repo by default. Override it per machine if needed:
+
+```bash
+CONFIG_FILE=/path/to/config.server.toml ./run-sync.sh
+```
+
+## ffmpeg configuration details
+
+In the `[ffmpeg]` config section in your config file you can change the way episodes are normalized:
 
 Normalization notes:
 
