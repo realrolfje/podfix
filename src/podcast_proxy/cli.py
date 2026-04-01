@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import logging
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import os
 from pathlib import Path
+import secrets
 
 from .config import load_config
 from .service import sync
@@ -75,22 +77,77 @@ def main() -> None:
 
     if args.command == "serve":
         config = load_config(args.config)
-        serve(config.public_dir, args.port)
+        serve(
+            config.public_dir,
+            args.port,
+            username=config.http.basic_auth_username,
+            password=config.http.basic_auth_password,
+        )
 
 
-def serve(directory: Path, port: int) -> None:
-    handler = partial_handler(directory)
+def serve(directory: Path, port: int, *, username: str, password: str) -> None:
+    handler = partial_handler(directory, username=username, password=password)
     with ThreadingHTTPServer(("0.0.0.0", port), handler) as server:
-        print(f"Serving {directory} on http://0.0.0.0:{port}")
+        print(
+            f"Serving {directory} on http://0.0.0.0:{port} "
+            f"(HTTP Basic Auth user: {username})"
+        )
         server.serve_forever()
 
 
-def partial_handler(directory: Path) -> type[SimpleHTTPRequestHandler]:
+def partial_handler(
+    directory: Path,
+    *,
+    username: str,
+    password: str,
+) -> type[SimpleHTTPRequestHandler]:
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args: object, **kwargs: object) -> None:
             super().__init__(*args, directory=os.fspath(directory), **kwargs)
 
+        def send_head(self):  # type: ignore[override]
+            if not _is_authorized(
+                self.headers.get("Authorization"),
+                username=username,
+                password=password,
+            ):
+                self._send_auth_challenge()
+                return None
+            return super().send_head()
+
+        def _send_auth_challenge(self) -> None:
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="Podfix"')
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.end_headers()
+            if self.command != "HEAD":
+                self.wfile.write(b"Authentication required.\n")
+
     return Handler
+
+
+def _is_authorized(
+    authorization_header: str | None,
+    *,
+    username: str,
+    password: str,
+) -> bool:
+    if not authorization_header:
+        return False
+    scheme, _, value = authorization_header.partition(" ")
+    if scheme.lower() != "basic" or not value:
+        return False
+    try:
+        decoded = base64.b64decode(value, validate=True).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return False
+    provided_username, separator, provided_password = decoded.partition(":")
+    if not separator:
+        return False
+    return secrets.compare_digest(provided_username, username) and secrets.compare_digest(
+        provided_password,
+        password,
+    )
 
 
 if __name__ == "__main__":

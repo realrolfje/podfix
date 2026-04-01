@@ -96,6 +96,10 @@ badge_artwork = false
 max_episodes = 20
 podcast_mode = "auto"
 
+[http]
+basic_auth_username = "podfix"
+basic_auth_password = "change-me"
+
 [[podcasts]]
 slug = "example-news"
 upstream_feed_url = "https://example.com/podcast/feed.xml"
@@ -136,6 +140,10 @@ include = "config.shared.toml"
 
 base_url = "https://podfix.example.com"
 output_dir = "./output"
+
+[http]
+basic_auth_username = "podfix"
+basic_auth_password = "change-me"
 ```
 
 Merge behavior:
@@ -161,6 +169,7 @@ Important config values:
 - `badge_artwork`: if `true`, artwork is cached locally and stamped with a blue `COMPRESSED` badge
 - `max_episodes`: default number of episodes to retain in each generated feed and show page; set `"unlimited"` to keep all synced episodes
 - `podcast_mode`: default mode for podcasts that do not override it
+- `[http].basic_auth_username` and `[http].basic_auth_password`: credentials used by `podfix serve`; defaults are `podfix` / `change-me`, so change them in your real config
 - `[[podcasts]]`: array of podcast entries in the same TOML file
 - `slug`: URL path segment and output folder name for that podcast
 - `upstream_feed_url`: source podcast feed for that podcast
@@ -245,6 +254,8 @@ Serve the generated feed locally:
 ```bash
 ./podfix.sh serve --config config.toml --port 8080
 ```
+
+`podfix serve` always requires HTTP Basic Auth. If you do not set credentials in `[http]`, it falls back to `podfix` / `change-me`.
 
 Then open:
 

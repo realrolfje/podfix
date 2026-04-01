@@ -7,5 +7,6 @@ config.local.toml
 config.server.toml
 
 output/
+output-test/
 output-one/
 src/podcast_proxy.egg-info/

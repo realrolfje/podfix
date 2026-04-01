@@ -13,6 +13,10 @@ badge_artwork = false
 max_episodes = 20
 podcast_mode = "auto"
 
+[http]
+basic_auth_username = "podfix"
+basic_auth_password = "change-me"
+
 [[podcasts]]
 slug = "example-news"
 upstream_feed_url = "https://example.com/podcast/feed.xml"
@@ -51,6 +55,10 @@ include = "config.shared.toml"
 
 base_url = "https://podfix.example.com"
 output_dir = "./output"
+
+[http]
+basic_auth_username = "podfix"
+basic_auth_password = "change-me"
 ```
 
 ## Merge Rules
@@ -115,6 +123,10 @@ Supported keys:
 - `user_agent`
 - `timeout_seconds`
 - `retries`
+- `basic_auth_username`
+- `basic_auth_password`
+
+`podfix serve` always protects all content with HTTP Basic Auth. If you omit these keys, Podfix uses the default credentials `podfix` / `change-me`, so change them in your real config.
 
 ### `[ffmpeg]`
 

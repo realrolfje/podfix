@@ -16,6 +16,8 @@ class HTTPConfig:
     user_agent: str = "podcast-proxy/0.1"
     timeout_seconds: float = 30.0
     retries: int = 2
+    basic_auth_username: str = "podfix"
+    basic_auth_password: str = "change-me"
 
 
 @dataclass(slots=True)
@@ -136,6 +138,7 @@ class PodcastConfig:
 class AppConfig:
     base_url: str
     output_dir: Path
+    http: HTTPConfig
     podcasts: list[PodcastConfig]
 
     @property
@@ -207,6 +210,7 @@ def load_config(path: str | Path) -> AppConfig:
     app_config = AppConfig(
         base_url=base_url,
         output_dir=output_dir,
+        http=http,
         podcasts=podcasts,
     )
     app_config.ensure_directories()
@@ -272,6 +276,12 @@ def _parse_http(raw: dict[str, object]) -> HTTPConfig:
         user_agent=str(raw.get("user_agent", defaults.user_agent)),
         timeout_seconds=float(raw.get("timeout_seconds", defaults.timeout_seconds)),
         retries=int(raw.get("retries", defaults.retries)),
+        basic_auth_username=str(
+            raw.get("basic_auth_username", defaults.basic_auth_username)
+        ),
+        basic_auth_password=str(
+            raw.get("basic_auth_password", defaults.basic_auth_password)
+        ),
     )
 
 
