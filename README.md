@@ -1,3 +1,5 @@
+<img src="./podfix-logo.png" alt="Podfix logo" align="right" width="180">
+
 # Podfix
 
 Are you tired of listening to podcasts WiTH voluME LEVELS ALl oVER tHe PLAce? Does your podcast contain thumping bass that shatters your car windows while you are trying to listen to an interesting interview? Is the podcast maybe video but you only want to listen to the audio in your car without distraction? Then you need `podfix`. 
