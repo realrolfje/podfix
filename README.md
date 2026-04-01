@@ -2,6 +2,19 @@
 
 `podfix` is a small self-hosted Python tool that mirrors one or more upstream podcast feeds, transcodes episode media with `ffmpeg`, and publishes new RSS feeds that point at the processed MP3 files.
 
+## Personal Use Only
+
+This project is intended for personal, private use on your own machine or personal server.
+
+Do not treat the generated feed or processed MP3 files as something you can publish publicly or redistribute to other people. If you run this tool, prefer a setup that is clearly private:
+
+- host it only for yourself
+- keep it behind authentication such as HTTP Basic Auth
+- use an unlisted URL in addition to access control, not instead of it
+- disable indexing and directory listing on the server
+
+If you want multiple people to use processed feeds, get proper legal advice first. A hidden URL alone is not the same thing as a private personal-use setup.
+
 Current behavior:
 
 - Fetches and parses upstream RSS feeds

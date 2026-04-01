@@ -10,7 +10,7 @@ from .config import PodcastConfig
 from .utils import sha1_text
 
 
-BADGE_TEXT = "COMPRESSED"
+BADGE_TEXT = "PODFIXED"
 BADGE_COLOR = "#1F6BFF"
 TEXT_COLOR = "#FFFFFF"
 BADGE_BORDER = "#FFFFFF"
