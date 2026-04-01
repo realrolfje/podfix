@@ -6,6 +6,8 @@ Are you tired of listening to podcasts WiTH voluME LEVELS ALl oVER tHe PLAce? Do
 
 `podfix` is a self-hosted podcast repair tool for people who are tired of amateur podcasts with muddy audio, uneven speaker volume, and constant reach-for-the-volume-button moments. It downloads episodes, removes video, cleans them up with `ffmpeg`, reduces size, and publishes replacement RSS feeds that point at the processed MP3 files for your listening pleasure.
 
+For the full story behind this tool can be found in [this blogpost on www.rolfje.com](https://www.rolfje.com/2026/04/01/the-podcast-problem-fixed/).
+
 ## DISCLAIMER
 
 This project is intended for personal, private use on your own machine or personal server.
