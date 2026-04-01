@@ -17,6 +17,8 @@ Do not treat the generated feed or processed MP3 files as something you can publ
 
 If you want multiple people to use processed feeds, get proper legal advice first. A hidden URL alone is not the same thing as a private personal-use setup.
 
+See [Private nginx hosting](#private-nginx-hosting) below for an example setup with HTTP Basic Auth.
+
 ## Current functionality:
 
 - Fetches and parses upstream RSS feeds
@@ -248,6 +250,48 @@ For podcast apps, use:
 http://localhost:8080/<slug>/feed.xml
 ```
 
+## Private nginx hosting
+
+If you publish the generated files from nginx, keep the podcast area behind authentication so the setup stays personal/private. One simple way is to serve the generated files from a protected path such as `/private/`:
+
+```nginx
+server {
+    listen 80;
+    server_name localhost;
+
+    root /usr/share/nginx/html;
+    index index.html index.htm;
+
+    location /private/ {
+        auth_basic "Restricted";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+        try_files $uri $uri/ =404;
+    }
+
+    location ~ /\. {
+        deny all;
+        return 404;
+        access_log off;
+        log_not_found off;
+    }
+
+    location / {
+        aio off;
+        directio off;
+        try_files $uri $uri/ =404;
+    }
+
+    include /etc/nginx/includes/common-errors.inc;
+}
+```
+
+With a setup like this, your `base_url` should point at the protected path, for example:
+
+```toml
+base_url = "https://example.com/private"
+```
+
+Apple Podcasts has been tested with HTTP Basic Auth in this kind of setup and works with protected feed URLs.
 
 ## Scheduling synchronization
 
