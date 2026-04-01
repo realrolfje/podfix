@@ -79,7 +79,7 @@ class MediaSafetyTests(unittest.TestCase):
 
     def test_download_cleans_up_partial_file_on_interrupt(self) -> None:
         destination = self.config.downloads_dir / "episode-1.mp3"
-        temp_path = destination.with_suffix(".mp3.part")
+        temp_path = destination.with_name("episode-1.part.mp3")
         session = _Session(_ChunkedResponse([b"abc", b"def"], error_at=1))
 
         with self.assertRaises(KeyboardInterrupt):
@@ -93,7 +93,7 @@ class MediaSafetyTests(unittest.TestCase):
         source_path.write_bytes(b"source")
         public_path = self.config.public_episodes_dir / "episode-1.mp3"
         public_path.write_bytes(b"existing-public")
-        temp_path = public_path.with_suffix(".mp3.part")
+        temp_path = public_path.with_name("episode-1.part.mp3")
 
         with patch("podcast_proxy.media.subprocess.run") as mocked_run:
             mocked_run.return_value.returncode = 1
@@ -138,7 +138,7 @@ class MediaSafetyTests(unittest.TestCase):
         self.assertEqual(result, public_path)
         self.assertEqual(public_path.read_bytes(), b"new-public")
         self.assertFalse(source_path.exists())
-        self.assertFalse(public_path.with_suffix(".mp3.part").exists())
+        self.assertFalse(public_path.with_name("episode-1.part.mp3").exists())
 
 
 if __name__ == "__main__":

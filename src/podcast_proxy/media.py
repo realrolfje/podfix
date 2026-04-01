@@ -139,4 +139,6 @@ def _cleanup_source(config: PodcastConfig, source_path: Path) -> None:
 
 
 def _temporary_path(path: Path) -> Path:
-    return path.with_suffix(f"{path.suffix}.part")
+    if path.suffix:
+        return path.with_name(f"{path.stem}.part{path.suffix}")
+    return path.with_name(f"{path.name}.part")
