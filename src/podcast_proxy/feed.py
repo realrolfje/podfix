@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from email.utils import parsedate_to_datetime
 from pathlib import Path
+import re
 from typing import Any
 
 import feedparser
@@ -87,6 +88,7 @@ def fetch_feed(
     feed = parsed.feed
     entries = list(parsed.entries)
     episodes = [_entry_to_episode(entry) for entry in entries if _has_enclosure(entry)]
+    episodes = _filter_episodes(episodes, config)
     resolved_mode = _resolve_podcast_mode(feed, config.podcast_mode)
     episodes.sort(key=_sort_key, reverse=(resolved_mode == "news"))
 
@@ -224,6 +226,16 @@ def _sort_key(episode: Episode) -> tuple[int, str]:
         return (1, parsedate_to_datetime(episode.published).isoformat())
     except (TypeError, ValueError, IndexError):
         return (0, episode.published)
+
+
+def _filter_episodes(
+    episodes: list[Episode],
+    config: PodcastConfig,
+) -> list[Episode]:
+    if not config.episode_title_include:
+        return episodes
+    pattern = re.compile(config.episode_title_include, re.IGNORECASE)
+    return [episode for episode in episodes if pattern.search(episode.title)]
 
 
 def _resolve_podcast_mode(feed: Any, configured_mode: str) -> str:

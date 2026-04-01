@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 import tomllib
 from typing import Any
 
@@ -39,6 +40,7 @@ class FFMpegConfig:
 class PodcastConfig:
     slug: str
     upstream_feed_url: str
+    episode_title_include: str | None
     base_url: str
     output_dir: Path
     keep_original_downloads: bool
@@ -352,6 +354,7 @@ def _parse_podcast(
     return PodcastConfig(
         slug=_parse_slug(slug_value),
         upstream_feed_url=upstream_feed_url,
+        episode_title_include=_parse_optional_pattern(raw.get("episode_title_include")),
         base_url=base_url,
         output_dir=output_dir,
         keep_original_downloads=bool(
@@ -388,3 +391,16 @@ def _parse_max_episodes(value: object) -> int | None:
 def _parse_slug(value: object) -> str:
     slug = sanitize_filename(str(value).strip().lower(), fallback="podcast")
     return slug.replace(".", "-")
+
+
+def _parse_optional_pattern(value: object) -> str | None:
+    if value is None:
+        return None
+    pattern = str(value).strip()
+    if not pattern:
+        return None
+    try:
+        re.compile(pattern, re.IGNORECASE)
+    except re.error as exc:
+        raise ValueError(f"invalid regular expression {pattern!r}: {exc}") from exc
+    return pattern

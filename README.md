@@ -83,6 +83,8 @@ If you still have an older globally installed `podcast-proxy` command and want t
 
 ## Configuration
 
+See [CONFIGURATION.md](./CONFIGURATION.md) for the full configuration reference.
+
 Start from the included example files such as [config.local.example.toml](./config.local.example.toml) or [config.server.example.toml](./config.server.example.toml), then adjust:
 
 ```toml
