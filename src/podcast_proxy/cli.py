@@ -37,6 +37,16 @@ def main() -> None:
         help="limit the run to one or more podcast slugs",
     )
 
+    refresh_parser = subparsers.add_parser("refresh")
+    refresh_parser.add_argument("--config", required=True)
+    refresh_parser.add_argument(
+        "--podcast",
+        action="append",
+        dest="podcasts",
+        default=[],
+        help="limit the run to one or more podcast slugs",
+    )
+
     rebuild_images_parser = subparsers.add_parser("rebuild-images")
     rebuild_images_parser.add_argument("--config", required=True)
     rebuild_images_parser.add_argument(
@@ -69,7 +79,16 @@ def main() -> None:
         print(index_path)
         return
 
+    if args.command == "refresh":
+        config = load_config(args.config)
+        index_path = sync(config, rebuild_images=True, podcast_slugs=args.podcasts)
+        print(index_path)
+        return
+
     if args.command == "rebuild-images":
+        logging.warning(
+            "'rebuild-images' is deprecated; use 'refresh' instead"
+        )
         config = load_config(args.config)
         index_path = sync(config, rebuild_images=True, podcast_slugs=args.podcasts)
         print(index_path)

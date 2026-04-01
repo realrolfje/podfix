@@ -34,8 +34,7 @@ See [Private nginx hosting](#private-nginx-hosting) below for an example setup w
 - Can cache and badge artwork locally with a blue `COMPRESSED` pill
 - Preserves show artwork and per-episode artwork in the generated feed
 - Generates a root landing page that lists all configured podcasts
-- Provides `sync`, `rebuild`, and `serve` CLI commands
-- Provides a `rebuild-images` CLI command for artwork-only refreshes
+- Provides `sync`, `refresh`, `rebuild`, and `serve` CLI commands
 
 ## Layout
 
@@ -239,19 +238,21 @@ Rebuild only one show:
 
 `rebuild` force-overwrites existing public episode files and re-runs `ffmpeg`, so updated audio settings take effect even when filenames stay the same.
 
-Rebuild artwork only:
+Refresh feed, site, artwork, and local URLs without reprocessing audio:
 
 ```bash
-./podfix.sh rebuild-images --config config.toml
+./podfix.sh refresh --config config.toml
 ```
 
-Rebuild artwork for one show only:
+Refresh one show only:
 
 ```bash
-./podfix.sh rebuild-images --config config.toml --podcast dai-carter
+./podfix.sh refresh --config config.toml --podcast dai-carter
 ```
 
-`rebuild-images` re-fetches the selected feed window, regenerates show and episode artwork for already-synced episodes, rewrites the public feed and show pages, and skips media download/transcode work.
+`refresh` re-fetches the selected feed window, refreshes show and episode artwork for already-synced episodes, rewrites the public feed and show pages, refreshes local enclosure URLs from the current config, and skips media download/transcode work.
+
+`rebuild-images` still works as a deprecated alias for `refresh`.
 
 Serve the generated feed locally:
 
@@ -355,7 +356,7 @@ Normalization notes:
 - For `story`, the episode window is the oldest `max_episodes` items.
 - Use `max_episodes = "unlimited"` to let `story` feeds backfill the full archive.
 - `rebuild` always re-fetches the selected episode window and re-encodes the output MP3s, per podcast.
-- `rebuild-images` always re-fetches the selected episode window and regenerates artwork for already-synced episodes without running `ffmpeg`.
+- `refresh` always re-fetches the selected episode window, refreshes artwork and local URLs for already-synced episodes, and rewrites feed/site output without running `ffmpeg`.
 - Failed episode downloads or transcodes are logged and skipped.
 - The state file is written atomically to avoid partial corruption.
 - Episode artwork can be reused from the upstream feed or cached locally with a badge, depending on config.

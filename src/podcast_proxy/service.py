@@ -267,12 +267,18 @@ def _rebuild_episode_artwork(
         if not previous:
             continue
         LOGGER.info("rebuilding artwork for %s: %s", config.slug, episode.title)
-        next_episode_state[episode.guid] = {
+        rebuilt_record = {
             **previous,
             "image_url": _process_episode_artwork(session, config, episode.image_url),
             "signature": _episode_signature(episode),
             "source_signature": _source_signature(episode),
         }
+        processed_name = str(previous.get("processed_file") or "").strip()
+        if processed_name:
+            rebuilt_record["enclosure_url"] = (
+                f"{config.public_base_url}/episodes/{processed_name}"
+            )
+        next_episode_state[episode.guid] = rebuilt_record
     return next_episode_state
 
 
