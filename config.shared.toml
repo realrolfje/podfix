@@ -66,6 +66,36 @@ podcast_mode = "story"
 max_episodes = "unlimited"
 
 [[podcasts]]
+slug = "de-diamantroof"
+upstream_feed_url = "https://podcast.npo.nl/feed/het-misdaadbureau-extra.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "jopie-huisman"
+upstream_feed_url = "https://podcast.npo.nl/feed/de-gestolen-schilderijen-van-jopie-huisman.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "bewaaksters-van-auschwitz"
+upstream_feed_url = "https://podcast.npo.nl/feed/de-nederlandse-bewaaksters-van-auschwitz.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "de-verloren-zaak-van-jose"
+upstream_feed_url = "https://omny.fm/shows/de-verloren-zaak-van-jos/playlists/podcast.rss"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "radio-bergeijk"
+upstream_feed_url = "https://podcast.npo.nl/feed/radio-bergeijk.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
 slug = "het-geluk-van-limburg"
 upstream_feed_url = "https://podcast.npo.nl/feed/de-laatste-dans.xml"
 podcast_mode = "story"
@@ -92,6 +122,11 @@ max_episodes = "unlimited"
 [[podcasts]]
 slug = "universiteit-van-nederland"
 upstream_feed_url = "https://omny.fm/shows/de-universiteit-van-nederland-podcast/playlists/podcast.rss"
+podcast_mode = "news"
+
+[[podcasts]]
+slug = "ssr-meestervertellers"
+upstream_feed_url = "https://ssr.nl/podcast/feed/"
 podcast_mode = "news"
 
 [http]

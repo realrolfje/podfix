@@ -1,8 +1,10 @@
-# podfix
+# Podfix
 
-`podfix` is a small self-hosted Python tool that mirrors one or more upstream podcast feeds, transcodes episode media with `ffmpeg`, and publishes new RSS feeds that point at the processed MP3 files.
+Are you tired of listening to podcasts WiTH voluME LEVELS ALl oVER tHe PLAce? Does your podcast contain thumping bass that shatters your car windows while you are trying to listen to an interesting interview? Is the podcast maybe video but you only want to listen to the audio in your car without distraction? Then you need `podfix`. 
 
-## Personal Use Only
+`podfix` is a self-hosted podcast repair tool for people who are tired of amateur podcasts with muddy audio, uneven speaker volume, and constant reach-for-the-volume-button moments. It downloads episodes, removes video, cleans them up with `ffmpeg`, reduces size, and publishes replacement RSS feeds that point at the processed MP3 files for your listening pleasure.
+
+## DISCLAIMER
 
 This project is intended for personal, private use on your own machine or personal server.
 
@@ -15,7 +17,7 @@ Do not treat the generated feed or processed MP3 files as something you can publ
 
 If you want multiple people to use processed feeds, get proper legal advice first. A hidden URL alone is not the same thing as a private personal-use setup.
 
-Current behavior:
+## Current functionality:
 
 - Fetches and parses upstream RSS feeds
 - Supports multiple podcasts from one TOML config file
