@@ -96,6 +96,12 @@ podcast_mode = "story"
 max_episodes = "unlimited"
 
 [[podcasts]]
+slug = "in-de-ban-van-rian"
+upstream_feed_url = "https://omny.fm/shows/in-de-ban-van-rian/playlists/podcast.rss"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
 slug = "het-geluk-van-limburg"
 upstream_feed_url = "https://podcast.npo.nl/feed/de-laatste-dans.xml"
 podcast_mode = "story"
@@ -127,6 +133,11 @@ podcast_mode = "news"
 [[podcasts]]
 slug = "ssr-meestervertellers"
 upstream_feed_url = "https://feeds.fireside.fm/ssr/rss"
+podcast_mode = "news"
+
+[[podcasts]]
+slug = "koningsbrugge-suriname"
+upstream_feed_url = "https://podcast.npo.nl/feed/kamp-van-koningsbrugge-suriname.xml"
 podcast_mode = "news"
 
 [http]
