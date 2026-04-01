@@ -13,6 +13,7 @@ podcast_mode = "auto"
 slug = "dai-carter"
 upstream_feed_url = "https://omny.fm/shows/dai-carter-missie-mentale-kracht/playlists/podcast.rss"
 podcast_mode = "story"
+max_episodes = "unlimited"
 
 [[podcasts]]
 slug = "alledaagse-vragen"
