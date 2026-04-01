@@ -65,15 +65,20 @@ def write_podcast_index(
         You can also open the RSS directly, or click on "Play" on any of the episodes below to listen directly.</p>
       </div>
     </section>
+    <section class="search-panel">
+      <label class="search-label" for="episode-search">Find an episode</label>
+      <input id="episode-search" class="search-input" type="search" placeholder="Type to filter episodes by title or date" autocomplete="off">
+      <p id="episode-search-status" class="search-status" aria-live="polite">Showing all episodes.</p>
+    </section>
     <section>
       <h2>Recent Episodes</h2>
-      <div class="episodes">
+      <div class="episodes" id="episode-list">
         {items_markup}
       </div>
     </section>
   </main>
-</body>
 <script>{_copy_script()}</script>
+</body>
 </html>
 """
     destination = config.public_index
@@ -107,15 +112,20 @@ def write_library_index(app_config: AppConfig, podcasts: list[dict[str, Any]]) -
         affeliate programs (Podimo, Patreon, Soundcloud, or socials).</p>
       </div>
     </section>
+    <section class="search-panel">
+      <label class="search-label" for="podcast-search">Find a show</label>
+      <input id="podcast-search" class="search-input" type="search" placeholder="Type to filter podcasts by title or description" autocomplete="off">
+      <p id="podcast-search-status" class="search-status" aria-live="polite">Showing all podcasts.</p>
+    </section>
     <section>
       <h2>Available Podcasts</h2>
-      <div class="podcasts">
+      <div class="podcasts" id="podcast-list">
         {cards}
       </div>
     </section>
   </main>
-</body>
 <script>{_copy_script()}</script>
+</body>
 </html>
 """
     destination = app_config.public_index
@@ -128,17 +138,20 @@ def _episode_card(
     *,
     fallback_image_url: str | None,
 ) -> str:
-    title = escape(str(record.get("title", "Untitled episode")))
-    published = escape(str(record.get("published", "")))
+    raw_title = str(record.get("title", "Untitled episode"))
+    raw_published = str(record.get("published", ""))
+    title = escape(raw_title)
+    published = escape(raw_published)
     enclosure_url = escape(_relative_episode_url(str(record.get("enclosure_url", "#"))))
     image_url = str(record.get("image_url") or fallback_image_url or "")
+    search_text = escape(" ".join(part for part in (raw_title, raw_published) if part).casefold())
     image_markup = ""
     if image_url:
         image_markup = (
             f'<img class="episode-image" src="{escape(_relative_podcast_image_url(image_url))}" alt="{title} artwork">'
         )
     return (
-        "<article class=\"episode\">"
+        f"<article class=\"episode\" data-search-text=\"{search_text}\">"
         f"{image_markup}"
         "<div class=\"episode-copy\">"
         f"<h3 class=\"episode-title\">{title}</h3>"
@@ -153,21 +166,25 @@ def _episode_card(
 
 
 def _podcast_card(card: dict[str, Any]) -> str:
-    title = escape(str(card.get("title", "Untitled podcast")))
-    description = escape(_plain_text(card.get("description", "")))
+    raw_title = str(card.get("title", "Untitled podcast"))
+    raw_description = _plain_text(card.get("description", ""))
+    raw_slug = str(card.get("slug", "")).strip("/")
+    title = escape(raw_title)
+    description = escape(raw_description)
     slug = str(card.get("slug", "")).strip("/")
     feed_url = escape(f"{slug}/feed.xml" if slug else "feed.xml")
     index_url = escape(f"{slug}/index.html" if slug else "index.html")
     image_url = card.get("image_url")
     episodes = int(card.get("episode_count", 0))
     mode_badge = _mode_badge(_resolved_mode_label(card), "mode-badge-card")
+    search_text = escape(" ".join(part for part in (raw_title, raw_description, raw_slug) if part).casefold())
     image_markup = ""
     if image_url:
         image_markup = (
             f'<img class="podcast-cover" src="{escape(f"{slug}/images/{Path(str(image_url)).name}" if slug else str(image_url))}" alt="{title} cover art">'
         )
     return (
-        "<article class=\"podcast-card\">"
+        f"<article class=\"podcast-card\" data-search-text=\"{search_text}\">"
         f"{mode_badge}"
         f"{image_markup}"
         "<div class=\"podcast-copy\">"
@@ -435,6 +452,38 @@ def _shared_css() -> str:
       display: grid;
       gap: 18px;
     }
+    .search-panel {
+      display: grid;
+      gap: 10px;
+    }
+    .search-label {
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #5b554d;
+    }
+    .search-input {
+      width: 100%;
+      min-height: 52px;
+      padding: 0 18px;
+      border: 1px solid rgba(31, 27, 22, 0.12);
+      border-radius: 16px;
+      background: rgba(255, 253, 247, 0.92);
+      color: var(--ink);
+      font: inherit;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    }
+    .search-input:focus {
+      outline: 2px solid rgba(12, 99, 255, 0.22);
+      outline-offset: 2px;
+      border-color: rgba(12, 99, 255, 0.38);
+    }
+    .search-status {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
     .podcast-card {
       position: relative;
       display: grid;
@@ -516,21 +565,72 @@ def _rss_icon() -> str:
 
 def _copy_script() -> str:
     return """
-    document.querySelectorAll('.copy-feed').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const label = button.querySelector('span:last-child');
-        const original = label ? label.textContent : 'Copy RSS Link';
-        const target = button.dataset.feedUrl || 'feed.xml';
-        const absolute = new URL(target, window.location.href).href;
-        try {
-          await navigator.clipboard.writeText(absolute);
-          if (label) label.textContent = 'Copied';
-          window.setTimeout(() => {
-            if (label) label.textContent = original;
-          }, 1200);
-        } catch (_error) {
+    (function () {
+      var buttons = document.querySelectorAll('.copy-feed');
+      Array.prototype.forEach.call(buttons, function (button) {
+        button.addEventListener('click', function () {
+          var label = button.querySelector('span:last-child');
+          var original = label ? label.textContent : 'Copy RSS Link';
+          var target = button.getAttribute('data-feed-url') || 'feed.xml';
+          var absolute = new URL(target, window.location.href).href;
+
+          var setCopiedLabel = function () {
+            if (!label) return;
+            label.textContent = 'Copied';
+            window.setTimeout(function () {
+              label.textContent = original;
+            }, 1200);
+          };
+
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(absolute).then(setCopiedLabel).catch(function () {
+              window.prompt('Copy this feed URL:', absolute);
+            });
+            return;
+          }
+
           window.prompt('Copy this feed URL:', absolute);
-        }
+        });
       });
-    });
+
+      var wireSearch = function (inputId, statusId, selector, singularLabel, pluralLabel) {
+        var searchInput = document.getElementById(inputId);
+        var searchStatus = document.getElementById(statusId);
+        var cards = document.querySelectorAll(selector);
+
+        if (!searchInput || !searchStatus || !cards.length) {
+          return;
+        }
+
+        var updateSearch = function () {
+          var query = String(searchInput.value || '').replace(/^\\s+|\\s+$/g, '').toLowerCase();
+          var visibleCount = 0;
+
+          Array.prototype.forEach.call(cards, function (card) {
+            var haystack = String(card.getAttribute('data-search-text') || '').toLowerCase();
+            var matches = !query || haystack.indexOf(query) !== -1;
+            card.style.display = matches ? '' : 'none';
+            if (matches) {
+              visibleCount += 1;
+            }
+          });
+
+          if (!query) {
+            searchStatus.textContent = 'Showing all ' + pluralLabel + '.';
+          } else if (visibleCount === 0) {
+            searchStatus.textContent = 'No ' + pluralLabel + ' match "' + query + '".';
+          } else if (visibleCount === 1) {
+            searchStatus.textContent = 'Found 1 matching ' + singularLabel + ' for "' + query + '".';
+          } else {
+            searchStatus.textContent = 'Found ' + visibleCount + ' matching ' + pluralLabel + ' for "' + query + '".';
+          }
+        };
+
+        searchInput.addEventListener('input', updateSearch);
+        updateSearch();
+      };
+
+      wireSearch('podcast-search', 'podcast-search-status', '.podcast-card', 'podcast', 'podcasts');
+      wireSearch('episode-search', 'episode-search-status', '.episode', 'episode', 'episodes');
+    }());
     """

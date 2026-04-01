@@ -126,7 +126,7 @@ podcast_mode = "news"
 
 [[podcasts]]
 slug = "ssr-meestervertellers"
-upstream_feed_url = "https://ssr.nl/podcast/feed/"
+upstream_feed_url = "https://feeds.fireside.fm/ssr/rss"
 podcast_mode = "news"
 
 [http]
