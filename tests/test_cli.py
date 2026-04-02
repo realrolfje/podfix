@@ -96,7 +96,7 @@ class ServeAuthTests(unittest.TestCase):
                 "/media-secret/show/episodes/file.mp3?v=2",
                 media_path_token="media-secret",
             ),
-            "show/episodes/file.mp3",
+            "media-secret/show/episodes/file.mp3",
         )
         self.assertIsNone(
             _public_media_relative_path(

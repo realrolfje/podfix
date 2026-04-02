@@ -101,8 +101,14 @@ class PodcastConfig:
         return self.public_dir / "index.html"
 
     @property
+    def public_media_root_dir(self) -> Path:
+        return self.public_root_dir / self.media_path_token
+
+    @property
     def public_episodes_dir(self) -> Path:
-        return self.public_dir / "episodes"
+        if self.legacy_root:
+            return self.public_media_root_dir / "episodes"
+        return self.public_media_root_dir / self.slug / "episodes"
 
     @property
     def public_images_dir(self) -> Path:
@@ -137,6 +143,7 @@ class PodcastConfig:
             self.cache_dir,
             self.public_root_dir,
             self.public_dir,
+            self.public_media_root_dir,
             self.public_episodes_dir,
             self.public_images_dir,
         ):

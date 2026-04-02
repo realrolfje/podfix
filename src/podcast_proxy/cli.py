@@ -211,15 +211,6 @@ def partial_handler(
                 outputfile.write(chunk)
                 remaining -= len(chunk)
 
-        def translate_path(self, path: str) -> str:
-            media_relative_path = _public_media_relative_path(
-                path,
-                media_path_token=media_path_token,
-            )
-            if media_relative_path is not None:
-                path = f"/{media_relative_path}"
-            return super().translate_path(path)
-
         def _send_auth_challenge(self) -> None:
             self.send_response(401)
             self.send_header("WWW-Authenticate", 'Basic realm="Podfix"')
@@ -305,10 +296,9 @@ def _public_media_relative_path(
     prefix = f"{media_path_token.strip('/')}/"
     if not path.startswith(prefix):
         return None
-    relative_path = path[len(prefix):]
-    if not relative_path or not relative_path.lower().endswith(".mp3"):
+    if not path.lower().endswith(".mp3"):
         return None
-    return relative_path
+    return path
 
 
 if __name__ == "__main__":

@@ -45,10 +45,12 @@ output/
   data/
     public/
       index.html
+      media-change-me/
+        dai-carter/
+          episodes/
       dai-carter/
         index.html
         feed.xml
-        episodes/
         images/
     state/
     cache/
@@ -57,7 +59,7 @@ output/
 
 Each configured podcast gets its own subdirectory under `public/`. The root `public/index.html` lists all shows and links to each feed page.
 
-Only published MP3s are retained under each `public/<slug>/episodes/` by default. If `keep_original_downloads = true`, the original source files are also kept under `downloads/<slug>/` for debugging.
+Only published MP3s are retained under `public/<media_path_token>/<slug>/episodes/` by default. If `keep_original_downloads = true`, the original source files are also kept under `downloads/<slug>/` for debugging.
 
 Serve `output/data/public/` with any static web server, or use the built-in convenience command.
 
