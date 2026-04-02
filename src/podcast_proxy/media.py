@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
+from urllib.parse import urlsplit
 
 import requests
 
@@ -14,7 +15,7 @@ def download_media(
     config: PodcastConfig,
     episode: Episode,
 ) -> Path:
-    suffix = Path(episode.enclosure_url).suffix or ".bin"
+    suffix = _download_suffix(episode.enclosure_url)
     destination = config.downloads_dir / f"{episode.slug}{suffix}"
     if destination.exists():
         return destination
@@ -145,6 +146,11 @@ def _temporary_path(path: Path) -> Path:
     if path.suffix:
         return path.with_name(f"{path.stem}.part{path.suffix}")
     return path.with_name(f"{path.name}.part")
+
+
+def _download_suffix(enclosure_url: str) -> str:
+    path = urlsplit(enclosure_url).path
+    return Path(path).suffix or ".bin"
 
 
 def ensure_public_episode_path(

@@ -8,6 +8,7 @@ from unittest.mock import patch
 from podcast_proxy.config import FFMpegConfig, HTTPConfig, PodcastConfig
 from podcast_proxy.feed import Episode
 from podcast_proxy.media import (
+    _download_suffix,
     download_media,
     ensure_public_episode_path,
     transcode_media_with_options,
@@ -156,6 +157,14 @@ class MediaSafetyTests(unittest.TestCase):
         self.assertEqual(result, self.config.public_episodes_dir / "episode-1.mp3")
         self.assertEqual(result.read_bytes(), b"legacy-public")
         self.assertFalse(legacy_path.exists())
+
+    def test_download_suffix_ignores_query_string(self) -> None:
+        self.assertEqual(
+            _download_suffix(
+                "https://example.com/audio.mp3?awCollectionid=x&awEpisodeid=y"
+            ),
+            ".mp3",
+        )
 
 
 if __name__ == "__main__":
