@@ -66,6 +66,7 @@ def _selected_podcasts(
 
 def _summary_from_state(config: PodcastConfig) -> dict[str, Any] | None:
     state = StateStore(config.state_file).load()
+    enclosure_url_version = _state_enclosure_url_version(state)
     metadata = _normalize_metadata_urls(config, state.get("feed", {}).get("metadata", {}))
     if not metadata:
         return None
@@ -74,7 +75,10 @@ def _summary_from_state(config: PodcastConfig) -> dict[str, Any] | None:
         _resolved_mode(metadata),
         config.max_episodes,
     )
-    episode_records = [_normalize_record_urls(config, record) for record in episode_records]
+    episode_records = [
+        _normalize_record_urls(config, record, enclosure_url_version)
+        for record in episode_records
+    ]
     return _podcast_summary(config, metadata, episode_records)
 
 
@@ -85,6 +89,7 @@ def _sync_podcast(
 ) -> dict[str, Any]:
     state_store = StateStore(config.state_file)
     state = state_store.load()
+    enclosure_url_version = _next_enclosure_url_version(state, rebuild=rebuild)
 
     session = make_session(config)
     snapshot = fetch_feed(session, config, state)
@@ -109,7 +114,8 @@ def _sync_podcast(
                 config.max_episodes,
             )
             episode_records = [
-                _normalize_record_urls(config, record) for record in episode_records
+                _normalize_record_urls(config, record, enclosure_url_version)
+                for record in episode_records
             ]
             write_feed(config, metadata, episode_records)
             write_podcast_index(config, metadata, episode_records)
@@ -127,6 +133,7 @@ def _sync_podcast(
             snapshot.episodes,
             episode_state,
             snapshot.resolved_mode,
+            enclosure_url_version,
         )
         episodes_to_process: list[Episode] = []
     else:
@@ -173,7 +180,11 @@ def _sync_podcast(
                 "signature": signature,
                 "source_signature": _source_signature(episode),
                 "processed_file": public_name,
-                "enclosure_url": f"{config.public_base_url}/episodes/{public_name}",
+                "enclosure_url": _local_episode_url(
+                    config,
+                    public_name,
+                    enclosure_url_version,
+                ),
                 "enclosure_length": public_path.stat().st_size,
                 "enclosure_type": "audio/mpeg",
             }
@@ -201,7 +212,10 @@ def _sync_podcast(
             snapshot.resolved_mode,
             config.max_episodes,
         )
-    ordered_records = [_normalize_record_urls(config, record) for record in ordered_records]
+    ordered_records = [
+        _normalize_record_urls(config, record, enclosure_url_version)
+        for record in ordered_records
+    ]
     metadata = _normalize_metadata_urls(config, metadata)
     write_feed(config, metadata, ordered_records)
     write_podcast_index(config, metadata, ordered_records)
@@ -212,6 +226,7 @@ def _sync_podcast(
             "last_modified": snapshot.last_modified,
             "metadata": metadata,
         },
+        "enclosure_url_version": enclosure_url_version,
         "episodes": next_episode_state,
     }
     state_store.save(next_state)
@@ -260,6 +275,7 @@ def _rebuild_episode_artwork(
     episodes: list[Episode],
     episode_state: dict[str, dict[str, Any]],
     resolved_mode: str,
+    enclosure_url_version: int,
 ) -> dict[str, dict[str, Any]]:
     next_episode_state = dict(episode_state)
     for episode in _eligible_feed_window(episodes, resolved_mode, config.max_episodes):
@@ -275,8 +291,10 @@ def _rebuild_episode_artwork(
         }
         processed_name = str(previous.get("processed_file") or "").strip()
         if processed_name:
-            rebuilt_record["enclosure_url"] = (
-                f"{config.public_base_url}/episodes/{processed_name}"
+            rebuilt_record["enclosure_url"] = _local_episode_url(
+                config,
+                processed_name,
+                enclosure_url_version,
             )
         next_episode_state[episode.guid] = rebuilt_record
     return next_episode_state
@@ -314,6 +332,7 @@ def _normalize_metadata_urls(
 def _normalize_record_urls(
     config: PodcastConfig,
     record: dict[str, Any],
+    enclosure_url_version: int,
 ) -> dict[str, Any]:
     normalized = dict(record)
     if normalized.get("image_url"):
@@ -322,7 +341,10 @@ def _normalize_record_urls(
         )
     if normalized.get("enclosure_url"):
         normalized["enclosure_url"] = _normalize_local_episode_url(
-            config, normalized["enclosure_url"]
+            config,
+            normalized["enclosure_url"],
+            normalized.get("processed_file"),
+            enclosure_url_version,
         )
     return normalized
 
@@ -334,11 +356,56 @@ def _normalize_local_artwork_url(config: PodcastConfig, url: str) -> str:
     return str(url)
 
 
-def _normalize_local_episode_url(config: PodcastConfig, url: str) -> str:
+def _normalize_local_episode_url(
+    config: PodcastConfig,
+    url: str,
+    processed_file: object,
+    enclosure_url_version: int,
+) -> str:
+    processed_name = str(processed_file or "").strip()
+    if processed_name:
+        return _local_episode_url(config, processed_name, enclosure_url_version)
     legacy_prefix = f"{config.base_url}/episodes/"
     if str(url).startswith(legacy_prefix):
-        return f"{config.public_base_url}/episodes/{str(url)[len(legacy_prefix):]}"
+        return _with_enclosure_url_version(
+            f"{config.public_base_url}/episodes/{str(url)[len(legacy_prefix):]}",
+            enclosure_url_version,
+        )
     return str(url)
+
+
+def _local_episode_url(
+    config: PodcastConfig,
+    processed_name: str,
+    enclosure_url_version: int,
+) -> str:
+    return _with_enclosure_url_version(
+        f"{config.public_base_url}/episodes/{processed_name}",
+        enclosure_url_version,
+    )
+
+
+def _with_enclosure_url_version(url: str, enclosure_url_version: int) -> str:
+    if enclosure_url_version <= 0:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}v={enclosure_url_version}"
+
+
+def _state_enclosure_url_version(state: dict[str, Any]) -> int:
+    value = state.get("enclosure_url_version")
+    try:
+        version = int(value)
+    except (TypeError, ValueError):
+        return 0
+    return max(version, 0)
+
+
+def _next_enclosure_url_version(state: dict[str, Any], *, rebuild: bool) -> int:
+    current = _state_enclosure_url_version(state)
+    if rebuild:
+        return current + 1
+    return current
 
 
 def _has_public_copy(config: PodcastConfig, record: dict[str, Any]) -> bool:
