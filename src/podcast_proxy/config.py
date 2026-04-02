@@ -111,6 +111,10 @@ class PodcastConfig:
         return self.public_media_root_dir / self.slug / "episodes"
 
     @property
+    def legacy_public_episodes_dir(self) -> Path:
+        return self.public_dir / "episodes"
+
+    @property
     def public_images_dir(self) -> Path:
         return self.public_dir / "images"
 

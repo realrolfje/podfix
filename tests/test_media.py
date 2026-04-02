@@ -7,7 +7,11 @@ from unittest.mock import patch
 
 from podcast_proxy.config import FFMpegConfig, HTTPConfig, PodcastConfig
 from podcast_proxy.feed import Episode
-from podcast_proxy.media import download_media, transcode_media_with_options
+from podcast_proxy.media import (
+    download_media,
+    ensure_public_episode_path,
+    transcode_media_with_options,
+)
 
 
 class _ChunkedResponse:
@@ -141,6 +145,17 @@ class MediaSafetyTests(unittest.TestCase):
         self.assertEqual(public_path.read_bytes(), b"new-public")
         self.assertFalse(source_path.exists())
         self.assertFalse(public_path.with_name("episode-1.part.mp3").exists())
+
+    def test_existing_legacy_public_mp3_is_moved_to_tokenized_directory(self) -> None:
+        legacy_path = self.config.legacy_public_episodes_dir / "episode-1.mp3"
+        legacy_path.parent.mkdir(parents=True, exist_ok=True)
+        legacy_path.write_bytes(b"legacy-public")
+
+        result = ensure_public_episode_path(self.config, "episode-1.mp3")
+
+        self.assertEqual(result, self.config.public_episodes_dir / "episode-1.mp3")
+        self.assertEqual(result.read_bytes(), b"legacy-public")
+        self.assertFalse(legacy_path.exists())
 
 
 if __name__ == "__main__":

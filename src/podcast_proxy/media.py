@@ -57,6 +57,9 @@ def transcode_media_with_options(
     force: bool,
 ) -> Path:
     public_path = config.public_episodes_dir / f"{episode.slug}.mp3"
+    migrated_path = ensure_public_episode_path(config, public_path.name)
+    if migrated_path is not None:
+        public_path = migrated_path
     if public_path.exists() and not force:
         _cleanup_source(config, source_path)
         return public_path
@@ -142,3 +145,18 @@ def _temporary_path(path: Path) -> Path:
     if path.suffix:
         return path.with_name(f"{path.stem}.part{path.suffix}")
     return path.with_name(f"{path.name}.part")
+
+
+def ensure_public_episode_path(
+    config: PodcastConfig,
+    processed_name: str,
+) -> Path | None:
+    public_path = config.public_episodes_dir / processed_name
+    if public_path.exists():
+        return public_path
+    legacy_path = config.legacy_public_episodes_dir / processed_name
+    if not legacy_path.exists():
+        return None
+    public_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_path.replace(public_path)
+    return public_path

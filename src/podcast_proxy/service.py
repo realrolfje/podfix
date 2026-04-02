@@ -9,7 +9,11 @@ from typing import Any
 from .artwork import process_artwork
 from .config import AppConfig, PodcastConfig
 from .feed import Episode, cache_artwork, fetch_feed, make_session
-from .media import download_media, transcode_media_with_options
+from .media import (
+    download_media,
+    ensure_public_episode_path,
+    transcode_media_with_options,
+)
 from .html import write_library_index, write_podcast_index
 from .rss import write_feed
 from .state import StateStore
@@ -412,8 +416,7 @@ def _has_public_copy(config: PodcastConfig, record: dict[str, Any]) -> bool:
     processed_name = record.get("processed_file")
     if not processed_name:
         return False
-    public_path = config.public_episodes_dir / processed_name
-    return public_path.exists()
+    return ensure_public_episode_path(config, str(processed_name)) is not None
 
 
 def _episode_signature(episode: Episode) -> str:
