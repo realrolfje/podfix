@@ -292,19 +292,22 @@ server {
     root /usr/share/nginx/html;
     index index.html index.htm;
 
-    location ~* ^/private/.*\.(mp3|xml|jpg|jpeg|png)$ {
+    # Basic Authentication and no gzip on compressed files below /private/
+    location ~* ^/private/.*\.(mp3|xml|jpg|jpeg|png|zip)$ {
         auth_basic "Restricted";
         auth_basic_user_file /etc/nginx/.htpasswd;
         gzip off;
         try_files $uri =404;
     }
 
+    # Basic Authentication on anything below /private/
     location /private/ {
         auth_basic "Restricted";
         auth_basic_user_file /etc/nginx/.htpasswd;
         try_files $uri $uri/ =404;
     }
 
+    # Do not serve hidden files (files starting with a .)
     location ~ /\. {
         deny all;
         return 404;
@@ -312,6 +315,7 @@ server {
         log_not_found off;
     }
 
+    # Allow access to everything else (change this if needed)
     location / {
         aio off;
         directio off;
