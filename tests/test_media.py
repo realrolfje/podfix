@@ -56,6 +56,7 @@ class MediaSafetyTests(unittest.TestCase):
             badge_artwork=False,
             max_episodes=5,
             podcast_mode="news",
+            media_path_token="media-change-me",
             http=HTTPConfig(),
             ffmpeg=FFMpegConfig(binary="ffmpeg"),
         )

@@ -5,7 +5,11 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from podcast_proxy.cli import _is_authorized, _parse_range_header
+from podcast_proxy.cli import (
+    _is_authorized,
+    _parse_range_header,
+    _public_media_relative_path,
+)
 from podcast_proxy.config import load_config
 
 
@@ -32,6 +36,7 @@ class ServeAuthTests(unittest.TestCase):
 
         self.assertEqual(config.podcasts[0].http.basic_auth_username, "podfix")
         self.assertEqual(config.podcasts[0].http.basic_auth_password, "change-me")
+        self.assertEqual(config.podcasts[0].media_path_token, "media-change-me")
 
     def test_is_authorized_rejects_missing_or_invalid_headers(self) -> None:
         self.assertFalse(
@@ -84,6 +89,27 @@ class ServeAuthTests(unittest.TestCase):
         self.assertIsNone(_parse_range_header("bytes=5-1", 100))
         self.assertIsNone(_parse_range_header("bytes=100-101", 100))
         self.assertIsNone(_parse_range_header("bytes=0-1,4-5", 100))
+
+    def test_public_media_relative_path_requires_tokenized_mp3_path(self) -> None:
+        self.assertEqual(
+            _public_media_relative_path(
+                "/media-secret/show/episodes/file.mp3?v=2",
+                media_path_token="media-secret",
+            ),
+            "show/episodes/file.mp3",
+        )
+        self.assertIsNone(
+            _public_media_relative_path(
+                "/show/episodes/file.mp3",
+                media_path_token="media-secret",
+            )
+        )
+        self.assertIsNone(
+            _public_media_relative_path(
+                "/media-secret/show/feed.xml",
+                media_path_token="media-secret",
+            )
+        )
 
 
 if __name__ == "__main__":

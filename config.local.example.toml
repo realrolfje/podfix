@@ -2,6 +2,7 @@ include = "config.shared.toml"
 
 base_url = "http://localhost:8080"
 output_dir = "./output"
+media_path_token = "media-change-me"
 
 [http]
 basic_auth_username = "podfix"

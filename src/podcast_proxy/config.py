@@ -9,6 +9,7 @@ from typing import Any
 from .utils import sanitize_filename
 
 FeedMode = str
+DEFAULT_MEDIA_PATH_TOKEN = "media-change-me"
 
 
 @dataclass(slots=True)
@@ -50,6 +51,7 @@ class PodcastConfig:
     badge_artwork: bool
     max_episodes: int | None
     podcast_mode: FeedMode
+    media_path_token: str
     http: HTTPConfig
     ffmpeg: FFMpegConfig
     legacy_root: bool = False
@@ -113,6 +115,13 @@ class PodcastConfig:
         return f"{self.base_url}/{self.slug}"
 
     @property
+    def public_media_base_url(self) -> str:
+        token = self.media_path_token.strip("/")
+        if self.legacy_root:
+            return f"{self.base_url}/{token}"
+        return f"{self.base_url}/{token}/{self.slug}"
+
+    @property
     def feed_url(self) -> str:
         return f"{self.public_base_url}/feed.xml"
 
@@ -158,9 +167,11 @@ class AppConfig:
 def load_config(path: str | Path) -> AppConfig:
     config_path = Path(path)
     raw = _load_raw_config(config_path.resolve(), seen=set())
-
     base_url = str(raw["base_url"]).rstrip("/")
     output_dir = Path(raw["output_dir"]).expanduser()
+    media_path_token = _parse_media_path_token(
+        raw.get("media_path_token", DEFAULT_MEDIA_PATH_TOKEN)
+    )
     http = _parse_http(raw.get("http", {}))
     ffmpeg = _parse_ffmpeg(raw.get("ffmpeg", {}))
 
@@ -183,6 +194,7 @@ def load_config(path: str | Path) -> AppConfig:
                 keep_original_downloads=default_keep_original_downloads,
                 max_episodes=default_max_episodes,
                 podcast_mode=default_podcast_mode,
+                media_path_token=media_path_token,
                 http=http,
                 ffmpeg=ffmpeg,
                 legacy_root=False,
@@ -201,6 +213,7 @@ def load_config(path: str | Path) -> AppConfig:
                 badge_artwork=default_badge_artwork,
                 max_episodes=default_max_episodes,
                 podcast_mode=default_podcast_mode,
+                media_path_token=media_path_token,
                 http=http,
                 ffmpeg=ffmpeg,
                 legacy_root=True,
@@ -355,6 +368,7 @@ def _parse_podcast(
     badge_artwork: bool,
     max_episodes: int | None,
     podcast_mode: FeedMode,
+    media_path_token: str,
     http: HTTPConfig,
     ffmpeg: FFMpegConfig,
     legacy_root: bool,
@@ -374,6 +388,7 @@ def _parse_podcast(
         badge_artwork=bool(raw.get("badge_artwork", badge_artwork)),
         max_episodes=_parse_max_episodes(raw.get("max_episodes", max_episodes)),
         podcast_mode=_parse_podcast_mode(raw.get("podcast_mode", podcast_mode)),
+        media_path_token=media_path_token,
         http=http,
         ffmpeg=_ffmpeg_overrides(ffmpeg, raw.get("ffmpeg")),
         legacy_root=legacy_root,
@@ -414,3 +429,8 @@ def _parse_optional_pattern(value: object) -> str | None:
     except re.error as exc:
         raise ValueError(f"invalid regular expression {pattern!r}: {exc}") from exc
     return pattern
+
+
+def _parse_media_path_token(value: object) -> str:
+    token = sanitize_filename(str(value).strip(), fallback=DEFAULT_MEDIA_PATH_TOKEN)
+    return token.strip("/")

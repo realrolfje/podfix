@@ -12,6 +12,7 @@ cache_artwork = false
 badge_artwork = false
 max_episodes = 20
 podcast_mode = "auto"
+media_path_token = "media-change-me"
 
 [http]
 basic_auth_username = "podfix"
@@ -55,6 +56,7 @@ include = "config.shared.toml"
 
 base_url = "https://podfix.example.com"
 output_dir = "./output"
+media_path_token = "media-change-me"
 
 [http]
 basic_auth_username = "podfix"
@@ -114,6 +116,10 @@ Accepted values:
 - `story`
 - `auto`
 
+### `media_path_token`
+
+Secret path segment used for public episode MP3 URLs. This affects both `podfix serve` and static hosting such as nginx.
+
 ### `[http]`
 
 HTTP client settings for feed, media, and artwork downloads.
@@ -126,7 +132,7 @@ Supported keys:
 - `basic_auth_username`
 - `basic_auth_password`
 
-`podfix serve` always protects all content with HTTP Basic Auth. If you omit these keys, Podfix uses the default credentials `podfix` / `change-me`, so change them in your real config.
+`podfix serve` keeps feeds and pages behind HTTP Basic Auth. Episode MP3 URLs are emitted under a tokenized path from the top-level `media_path_token` setting and are served without auth so podcast apps can stream them directly. If you omit these keys, Podfix uses the defaults `podfix` / `change-me` and `media-change-me`, so change them in your real config.
 
 ### `[ffmpeg]`
 

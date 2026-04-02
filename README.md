@@ -98,6 +98,7 @@ cache_artwork = false
 badge_artwork = false
 max_episodes = 20
 podcast_mode = "auto"
+media_path_token = "media-change-me"
 
 [http]
 basic_auth_username = "podfix"
@@ -143,6 +144,7 @@ include = "config.shared.toml"
 
 base_url = "https://podfix.example.com"
 output_dir = "./output"
+media_path_token = "media-change-me"
 
 [http]
 basic_auth_username = "podfix"
@@ -172,6 +174,7 @@ Important config values:
 - `badge_artwork`: if `true`, artwork is cached locally and stamped with a blue `COMPRESSED` badge
 - `max_episodes`: default number of episodes to retain in each generated feed and show page; set `"unlimited"` to keep all synced episodes
 - `podcast_mode`: default mode for podcasts that do not override it
+- `media_path_token`: secret path segment used for public episode MP3 URLs; default is `media-change-me`, so set a hard-to-guess value in your real config
 - `[http].basic_auth_username` and `[http].basic_auth_password`: credentials used by `podfix serve`; defaults are `podfix` / `change-me`, so change them in your real config
 - `[[podcasts]]`: array of podcast entries in the same TOML file
 - `slug`: URL path segment and output folder name for that podcast
@@ -260,7 +263,9 @@ Serve the generated feed locally:
 ./podfix.sh serve --config config.toml --port 8080
 ```
 
-`podfix serve` always requires HTTP Basic Auth. If you do not set credentials in `[http]`, it falls back to `podfix` / `change-me`.
+`podfix serve` keeps feeds and pages behind HTTP Basic Auth. If you do not set credentials in `[http]`, it falls back to `podfix` / `change-me`.
+
+Episode MP3 URLs are exposed on a separate tokenized path based on `media_path_token`. The built-in server keeps feeds and pages behind Basic Auth, serves tokenized MP3 URLs without auth so podcast apps can fetch them directly, and adds `X-Robots-Tag: noindex, nofollow, noarchive, nosnippet` plus `Cache-Control: private` on those MP3 responses.
 
 Then open:
 
@@ -292,11 +297,13 @@ server {
     root /usr/share/nginx/html;
     index index.html index.htm;
 
-    # Basic Authentication and no gzip on compressed files below /private/
-    location ~* ^/private/.*\.(mp3|xml|jpg|jpeg|png|zip)$ {
-        auth_basic "Restricted";
-        auth_basic_user_file /etc/nginx/.htpasswd;
+    # Tokenized MP3 files stay hard to guess, are not gzip-compressed,
+    # and tell bots not to index or cache them.
+    location ~* ^/private/media-change-me/.*\.mp3$ {
+        auth_basic off;
         gzip off;
+        add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;
+        add_header Cache-Control "private" always;
         try_files $uri =404;
     }
 
@@ -334,7 +341,7 @@ base_url = "https://example.com/private"
 
 Apple Podcasts has been tested with HTTP Basic Auth in this kind of setup and works with protected feed URLs.
 
-If you serve the generated files from nginx, keep `gzip off;` on the protected media/feed/artwork files under `/private/` so byte-range responses for podcast clients stay straightforward without affecting unrelated locations.
+If you serve the generated files from nginx, keep a tokenized unauthenticated MP3 location under `/private/`, disable `gzip` there, and add `X-Robots-Tag` plus `Cache-Control` headers so podcast apps can stream the audio while bots are discouraged from indexing it. Keep the feed and pages themselves behind Basic Auth.
 
 ## Scheduling synchronization
 

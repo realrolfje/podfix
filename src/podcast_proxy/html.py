@@ -556,9 +556,6 @@ def _relative_podcast_image_url(url: str) -> str:
 
 
 def _relative_episode_url(url: str) -> str:
-    name = Path(url).name
-    if name:
-        return f"episodes/{name}"
     return url
 
 

@@ -9,6 +9,7 @@ from pathlib import Path
 import secrets
 import shutil
 from typing import BinaryIO
+from urllib.parse import urlsplit
 
 from .config import load_config
 from .service import sync
@@ -103,11 +104,24 @@ def main() -> None:
             args.port,
             username=config.http.basic_auth_username,
             password=config.http.basic_auth_password,
+            media_path_token=config.podcasts[0].media_path_token,
         )
 
 
-def serve(directory: Path, port: int, *, username: str, password: str) -> None:
-    handler = partial_handler(directory, username=username, password=password)
+def serve(
+    directory: Path,
+    port: int,
+    *,
+    username: str,
+    password: str,
+    media_path_token: str,
+) -> None:
+    handler = partial_handler(
+        directory,
+        username=username,
+        password=password,
+        media_path_token=media_path_token,
+    )
     with ThreadingHTTPServer(("0.0.0.0", port), handler) as server:
         print(
             f"Serving {directory} on http://0.0.0.0:{port} "
@@ -121,6 +135,7 @@ def partial_handler(
     *,
     username: str,
     password: str,
+    media_path_token: str,
 ) -> type[SimpleHTTPRequestHandler]:
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args: object, **kwargs: object) -> None:
@@ -128,7 +143,7 @@ def partial_handler(
             super().__init__(*args, directory=os.fspath(directory), **kwargs)
 
         def send_head(self):  # type: ignore[override]
-            if not _is_authorized(
+            if not self._is_public_media_request() and not _is_authorized(
                 self.headers.get("Authorization"),
                 username=username,
                 password=password,
@@ -170,6 +185,12 @@ def partial_handler(
                     "Last-Modified",
                     self.date_time_string(fs.st_mtime),
                 )
+                if self._is_public_media_request():
+                    self.send_header(
+                        "X-Robots-Tag",
+                        "noindex, nofollow, noarchive, nosnippet",
+                    )
+                    self.send_header("Cache-Control", "private")
                 self.end_headers()
                 return handle
             except BaseException:
@@ -190,6 +211,15 @@ def partial_handler(
                 outputfile.write(chunk)
                 remaining -= len(chunk)
 
+        def translate_path(self, path: str) -> str:
+            media_relative_path = _public_media_relative_path(
+                path,
+                media_path_token=media_path_token,
+            )
+            if media_relative_path is not None:
+                path = f"/{media_relative_path}"
+            return super().translate_path(path)
+
         def _send_auth_challenge(self) -> None:
             self.send_response(401)
             self.send_header("WWW-Authenticate", 'Basic realm="Podfix"')
@@ -197,6 +227,15 @@ def partial_handler(
             self.end_headers()
             if self.command != "HEAD":
                 self.wfile.write(b"Authentication required.\n")
+
+        def _is_public_media_request(self) -> bool:
+            return (
+                _public_media_relative_path(
+                    self.path,
+                    media_path_token=media_path_token,
+                )
+                is not None
+            )
 
     return Handler
 
@@ -254,6 +293,22 @@ def _parse_range_header(
     if start < 0 or end < start or start >= file_size:
         return None
     return (start, min(end, file_size - 1))
+
+
+def _public_media_relative_path(
+    request_path: str,
+    *,
+    media_path_token: str,
+) -> str | None:
+    parsed = urlsplit(request_path)
+    path = parsed.path.strip("/")
+    prefix = f"{media_path_token.strip('/')}/"
+    if not path.startswith(prefix):
+        return None
+    relative_path = path[len(prefix):]
+    if not relative_path or not relative_path.lower().endswith(".mp3"):
+        return None
+    return relative_path
 
 
 if __name__ == "__main__":

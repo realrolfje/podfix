@@ -27,6 +27,7 @@ class RebuildImagesTests(unittest.TestCase):
                 badge_artwork=False,
                 max_episodes=5,
                 podcast_mode="news",
+                media_path_token="media-change-me",
                 http=HTTPConfig(),
                 ffmpeg=FFMpegConfig(),
             )
@@ -64,7 +65,7 @@ class RebuildImagesTests(unittest.TestCase):
 
         self.assertEqual(
             rebuilt[episode.guid]["enclosure_url"],
-            "https://static.rolfje.com/private/podfix/data/public/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
+            "https://static.rolfje.com/private/podfix/data/public/media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
         )
 
     def test_rebuild_images_uses_versioned_enclosure_urls(self) -> None:
@@ -80,6 +81,7 @@ class RebuildImagesTests(unittest.TestCase):
                 badge_artwork=False,
                 max_episodes=5,
                 podcast_mode="news",
+                media_path_token="media-change-me",
                 http=HTTPConfig(),
                 ffmpeg=FFMpegConfig(),
             )
@@ -117,7 +119,7 @@ class RebuildImagesTests(unittest.TestCase):
 
         self.assertEqual(
             rebuilt[episode.guid]["enclosure_url"],
-            "https://static.rolfje.com/private/podfix/data/public/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3?v=2",
+            "https://static.rolfje.com/private/podfix/data/public/media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3?v=2",
         )
 
     def test_normalize_record_urls_prefers_processed_file_and_version(self) -> None:
@@ -133,6 +135,7 @@ class RebuildImagesTests(unittest.TestCase):
                 badge_artwork=False,
                 max_episodes=5,
                 podcast_mode="news",
+                media_path_token="media-change-me",
                 http=HTTPConfig(),
                 ffmpeg=FFMpegConfig(),
             )
@@ -148,7 +151,7 @@ class RebuildImagesTests(unittest.TestCase):
 
         self.assertEqual(
             normalized["enclosure_url"],
-            "https://static.rolfje.com/private/podfix/data/public/losse-eindjes/episodes/episode.mp3?v=3",
+            "https://static.rolfje.com/private/podfix/data/public/media-change-me/losse-eindjes/episodes/episode.mp3?v=3",
         )
 
     def test_rebuild_bumps_enclosure_url_version(self) -> None:

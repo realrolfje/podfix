@@ -380,7 +380,7 @@ def _local_episode_url(
     enclosure_url_version: int,
 ) -> str:
     return _with_enclosure_url_version(
-        f"{config.public_base_url}/episodes/{processed_name}",
+        f"{config.public_media_base_url}/episodes/{processed_name}",
         enclosure_url_version,
     )
 
