@@ -143,6 +143,11 @@ upstream_feed_url = "https://feeds.fireside.fm/ssr/rss"
 podcast_mode = "news"
 
 [[podcasts]]
+slug = "aaf-en-lies"
+upstream_feed_url = "https://www.omnycontent.com/d/playlist/9a879009-9913-4c6a-9792-b2b70034bb74/b09c90f0-360e-4e1a-bac6-b2f800e8ac6b/ce3c6964-70a4-445d-affc-b2f800e8ac80/podcast.rss"
+podcast_mode = "news"
+
+[[podcasts]]
 slug = "koningsbrugge-suriname"
 upstream_feed_url = "https://podcast.npo.nl/feed/kamp-van-koningsbrugge-suriname.xml"
 podcast_mode = "news"
