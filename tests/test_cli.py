@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from podcast_proxy.cli import _is_authorized
+from podcast_proxy.cli import _is_authorized, _parse_range_header
 from podcast_proxy.config import load_config
 
 
@@ -71,6 +71,19 @@ class ServeAuthTests(unittest.TestCase):
                 password="change-me",
             )
         )
+
+    def test_parse_range_header_accepts_standard_and_suffix_ranges(self) -> None:
+        self.assertEqual(_parse_range_header("bytes=0-1", 100), (0, 1))
+        self.assertEqual(_parse_range_header("bytes=10-", 100), (10, 99))
+        self.assertEqual(_parse_range_header("bytes=-10", 100), (90, 99))
+        self.assertEqual(_parse_range_header("bytes=-200", 100), (0, 99))
+
+    def test_parse_range_header_rejects_invalid_ranges(self) -> None:
+        self.assertIsNone(_parse_range_header(None, 100))
+        self.assertIsNone(_parse_range_header("items=0-1", 100))
+        self.assertIsNone(_parse_range_header("bytes=5-1", 100))
+        self.assertIsNone(_parse_range_header("bytes=100-101", 100))
+        self.assertIsNone(_parse_range_header("bytes=0-1,4-5", 100))
 
 
 if __name__ == "__main__":

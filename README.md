@@ -292,6 +292,13 @@ server {
     root /usr/share/nginx/html;
     index index.html index.htm;
 
+    location ~* ^/private/.*\.(mp3|xml|jpg|jpeg|png)$ {
+        auth_basic "Restricted";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+        gzip off;
+        try_files $uri =404;
+    }
+
     location /private/ {
         auth_basic "Restricted";
         auth_basic_user_file /etc/nginx/.htpasswd;
@@ -322,6 +329,8 @@ base_url = "https://example.com/private"
 ```
 
 Apple Podcasts has been tested with HTTP Basic Auth in this kind of setup and works with protected feed URLs.
+
+If you serve the generated files from nginx, keep `gzip off;` on the protected media/feed/artwork files under `/private/` so byte-range responses for podcast clients stay straightforward without affecting unrelated locations.
 
 ## Scheduling synchronization
 

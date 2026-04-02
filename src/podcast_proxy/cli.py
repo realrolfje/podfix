@@ -7,6 +7,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import os
 from pathlib import Path
 import secrets
+import shutil
+from typing import BinaryIO
 
 from .config import load_config
 from .service import sync
@@ -122,6 +124,7 @@ def partial_handler(
 ) -> type[SimpleHTTPRequestHandler]:
     class Handler(SimpleHTTPRequestHandler):
         def __init__(self, *args: object, **kwargs: object) -> None:
+            self._range: tuple[int, int] | None = None
             super().__init__(*args, directory=os.fspath(directory), **kwargs)
 
         def send_head(self):  # type: ignore[override]
@@ -132,7 +135,60 @@ def partial_handler(
             ):
                 self._send_auth_challenge()
                 return None
-            return super().send_head()
+            path = self.translate_path(self.path)
+            if os.path.isdir(path):
+                self._range = None
+                return super().send_head()
+            ctype = self.guess_type(path)
+            try:
+                handle = open(path, "rb")
+            except OSError:
+                self.send_error(404, "File not found")
+                return None
+            try:
+                fs = os.fstat(handle.fileno())
+                file_size = fs.st_size
+                range_request = _parse_range_header(
+                    self.headers.get("Range"),
+                    file_size,
+                )
+                if range_request is None:
+                    self._range = None
+                    self.send_response(200)
+                    self.send_header("Content-Type", ctype)
+                    self.send_header("Content-Length", str(file_size))
+                else:
+                    start, end = range_request
+                    self._range = (start, end)
+                    self.send_response(206)
+                    self.send_header("Content-Type", ctype)
+                    self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+                    self.send_header("Content-Length", str(end - start + 1))
+                    handle.seek(start)
+                self.send_header("Accept-Ranges", "bytes")
+                self.send_header(
+                    "Last-Modified",
+                    self.date_time_string(fs.st_mtime),
+                )
+                self.end_headers()
+                return handle
+            except BaseException:
+                handle.close()
+                raise
+
+        def copyfile(self, source: BinaryIO, outputfile: BinaryIO) -> None:
+            if self._range is None:
+                shutil.copyfileobj(source, outputfile)
+                return
+            start, end = self._range
+            del start
+            remaining = end - source.tell() + 1
+            while remaining > 0:
+                chunk = source.read(min(64 * 1024, remaining))
+                if not chunk:
+                    break
+                outputfile.write(chunk)
+                remaining -= len(chunk)
 
         def _send_auth_challenge(self) -> None:
             self.send_response(401)
@@ -167,6 +223,37 @@ def _is_authorized(
         provided_password,
         password,
     )
+
+
+def _parse_range_header(
+    range_header: str | None,
+    file_size: int,
+) -> tuple[int, int] | None:
+    if not range_header or not range_header.startswith("bytes=") or file_size <= 0:
+        return None
+    value = range_header[6:].strip()
+    if "," in value:
+        return None
+    start_text, separator, end_text = value.partition("-")
+    if not separator:
+        return None
+    try:
+        if start_text:
+            start = int(start_text)
+            end = file_size - 1 if not end_text else int(end_text)
+        else:
+            suffix_length = int(end_text)
+            if suffix_length <= 0:
+                return None
+            if suffix_length >= file_size:
+                return (0, file_size - 1)
+            start = file_size - suffix_length
+            end = file_size - 1
+    except ValueError:
+        return None
+    if start < 0 or end < start or start >= file_size:
+        return None
+    return (start, min(end, file_size - 1))
 
 
 if __name__ == "__main__":

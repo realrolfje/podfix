@@ -42,6 +42,7 @@ class RebuildImagesTests(unittest.TestCase):
                 author=None,
                 original_link=None,
                 image_url=None,
+                explicit="false",
             )
             episode_state = {
                 episode.guid: {
@@ -94,6 +95,7 @@ class RebuildImagesTests(unittest.TestCase):
                 author=None,
                 original_link=None,
                 image_url=None,
+                explicit="false",
             )
             episode_state = {
                 episode.guid: {

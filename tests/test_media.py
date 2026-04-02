@@ -72,6 +72,7 @@ class MediaSafetyTests(unittest.TestCase):
             author=None,
             original_link=None,
             image_url=None,
+            explicit="false",
         )
 
     def tearDown(self) -> None:

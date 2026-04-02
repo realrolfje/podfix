@@ -29,9 +29,10 @@ def write_feed(
     _text(channel, f"{{{ITUNES_NS}}}summary", metadata.get("description", ""))
     _text(channel, f"{{{ITUNES_NS}}}explicit", metadata.get("explicit"))
     _text(channel, f"{{{ITUNES_NS}}}type", _itunes_type(metadata))
-    if metadata.get("category"):
+    category_text = _itunes_category_text(metadata.get("category"))
+    if category_text:
         category = ET.SubElement(channel, f"{{{ITUNES_NS}}}category")
-        category.set("text", str(metadata["category"]))
+        category.set("text", category_text)
     if metadata.get("image_url"):
         image = ET.SubElement(channel, "image")
         _text(image, "url", metadata["image_url"])
@@ -49,6 +50,7 @@ def write_feed(
         _text(item, "guid", record["guid"])
         if record.get("author"):
             _text(item, f"{{{ITUNES_NS}}}author", record["author"])
+        _text(item, f"{{{ITUNES_NS}}}explicit", record.get("explicit", "false"))
         if record.get("original_link"):
             _text(item, "link", record["original_link"])
         if record.get("image_url"):
@@ -82,3 +84,12 @@ def _itunes_type(metadata: dict[str, Any]) -> str | None:
     if resolved_mode == "news":
         return "episodic"
     return None
+
+
+def _itunes_category_text(value: Any) -> str | None:
+    category = str(value or "").strip()
+    if not category:
+        return None
+    if category.isdigit():
+        return None
+    return category

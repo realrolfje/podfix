@@ -28,6 +28,7 @@ class Episode:
     author: str | None
     original_link: str | None
     image_url: str | None
+    explicit: str
 
 
 @dataclass(slots=True)
@@ -100,7 +101,7 @@ def fetch_feed(
         "author": feed.get("author"),
         "language": feed.get("language"),
         "category": _first_category(feed),
-        "explicit": _find_explicit(feed),
+        "explicit": _normalize_explicit(_find_explicit(feed)),
         "image_url": _find_image(feed),
         "link": feed.get("link"),
         "itunes_type": _find_itunes_type(feed),
@@ -160,6 +161,7 @@ def _entry_to_episode(entry: Any) -> Episode:
         author=entry.get("author"),
         original_link=entry.get("link"),
         image_url=_find_image(entry),
+        explicit=_normalize_explicit(_find_explicit(entry)),
     )
 
 
@@ -189,6 +191,15 @@ def _find_explicit(feed: Any) -> str | None:
         or feed.get("explicit")
         or feed.get("tags", [{}])[0].get("itunes_explicit")
     )
+
+
+def _normalize_explicit(value: object) -> str:
+    normalized = str(value or "").strip().lower()
+    if normalized in {"yes", "true", "explicit"}:
+        return "true"
+    if normalized in {"no", "false", "clean"}:
+        return "false"
+    return "false"
 
 
 def _find_image(feed: Any) -> str | None:
