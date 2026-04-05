@@ -1,5 +1,5 @@
 # Please set these in the local or server config
-# base_url = "http://static.rolfje.com/podfix/data"
+# base_url = "http://static.example.com/podfix/data"
 # output_dir = "/Users/rolf/dockers/ngnix-slim/static/podfix"
 
 # Stuff that you can override in the local or server config:

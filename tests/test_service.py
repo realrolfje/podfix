@@ -22,7 +22,7 @@ class RebuildImagesTests(unittest.TestCase):
                 slug="losse-eindjes",
                 upstream_feed_url="https://example.com/feed.xml",
                 episode_title_include=None,
-                base_url="https://static.rolfje.com/private/podfix/data/public",
+                base_url="https://static.example.com/private/podfix/data/published",
                 output_dir=Path(temp_dir),
                 keep_original_downloads=False,
                 cache_artwork=False,
@@ -52,7 +52,7 @@ class RebuildImagesTests(unittest.TestCase):
                     "guid": episode.guid,
                     "processed_file": "Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
                     "public_media_file": "media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
-                    "enclosure_url": "http://static.rolfje.com/private/podfix/data/public/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
+                    "enclosure_url": "http://static.example.com/private/podfix/data/published/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
                     "image_url": None,
                 }
             }
@@ -68,7 +68,7 @@ class RebuildImagesTests(unittest.TestCase):
 
         self.assertEqual(
             rebuilt[episode.guid]["enclosure_url"],
-            "https://static.rolfje.com/private/podfix/data/public/media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
+            "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
         )
 
     def test_rebuild_images_uses_versioned_enclosure_urls(self) -> None:
@@ -77,7 +77,7 @@ class RebuildImagesTests(unittest.TestCase):
                 slug="losse-eindjes",
                 upstream_feed_url="https://example.com/feed.xml",
                 episode_title_include=None,
-                base_url="https://static.rolfje.com/private/podfix/data/public",
+                base_url="https://static.example.com/private/podfix/data/published",
                 output_dir=Path(temp_dir),
                 keep_original_downloads=False,
                 cache_artwork=False,
@@ -107,7 +107,7 @@ class RebuildImagesTests(unittest.TestCase):
                     "guid": episode.guid,
                     "processed_file": "Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
                     "public_media_file": "media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
-                    "enclosure_url": "https://static.rolfje.com/private/podfix/data/public/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
+                    "enclosure_url": "https://static.example.com/private/podfix/data/published/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
                     "image_url": None,
                 }
             }
@@ -123,7 +123,7 @@ class RebuildImagesTests(unittest.TestCase):
 
         self.assertEqual(
             rebuilt[episode.guid]["enclosure_url"],
-            "https://static.rolfje.com/private/podfix/data/public/media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3?v=2",
+            "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3?v=2",
         )
 
     def test_normalize_record_urls_prefers_public_media_file_and_version(self) -> None:
@@ -132,7 +132,7 @@ class RebuildImagesTests(unittest.TestCase):
                 slug="losse-eindjes",
                 upstream_feed_url="https://example.com/feed.xml",
                 episode_title_include=None,
-                base_url="https://static.rolfje.com/private/podfix/data/public",
+                base_url="https://static.example.com/private/podfix/data/published",
                 output_dir=Path(temp_dir),
                 keep_original_downloads=False,
                 cache_artwork=False,
@@ -156,7 +156,7 @@ class RebuildImagesTests(unittest.TestCase):
 
         self.assertEqual(
             normalized["enclosure_url"],
-            "https://static.rolfje.com/private/podfix/data/public/media-change-me/losse-eindjes/episodes/episode.mp3?v=3",
+            "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/episode.mp3?v=3",
         )
 
     def test_rebuild_bumps_enclosure_url_version(self) -> None:
@@ -177,7 +177,7 @@ class RebuildImagesTests(unittest.TestCase):
                 slug="losse-eindjes",
                 upstream_feed_url="https://example.com/feed.xml",
                 episode_title_include=None,
-                base_url="https://static.rolfje.com/private/podfix/data/public",
+                base_url="https://static.example.com/private/podfix/data/published",
                 output_dir=Path(temp_dir),
                 keep_original_downloads=False,
                 cache_artwork=False,
@@ -210,7 +210,7 @@ class RebuildImagesTests(unittest.TestCase):
                 slug="losse-eindjes",
                 upstream_feed_url="https://example.com/feed.xml",
                 episode_title_include=None,
-                base_url="https://static.rolfje.com/private/podfix/data/public",
+                base_url="https://static.example.com/private/podfix/data/published",
                 output_dir=Path(temp_dir),
                 keep_original_downloads=False,
                 cache_artwork=False,
@@ -243,7 +243,7 @@ class RebuildImagesTests(unittest.TestCase):
                 slug="losse-eindjes",
                 upstream_feed_url="https://example.com/feed.xml",
                 episode_title_include=None,
-                base_url="https://static.rolfje.com/private/podfix/data/public",
+                base_url="https://static.example.com/private/podfix/data/published",
                 output_dir=Path(temp_dir),
                 keep_original_downloads=False,
                 cache_artwork=False,
@@ -258,7 +258,7 @@ class RebuildImagesTests(unittest.TestCase):
                 "guid-1": {
                     "guid": "guid-1",
                     "processed_file": "episode.mp3",
-                    "enclosure_url": "http://static.rolfje.com/private/podfix/data/public/losse-eindjes/episodes/episode.mp3",
+                    "enclosure_url": "http://static.example.com/private/podfix/data/published/losse-eindjes/episodes/episode.mp3",
                 }
             }
 
@@ -271,7 +271,7 @@ class RebuildImagesTests(unittest.TestCase):
             )
             self.assertEqual(
                 episode_state["guid-1"]["enclosure_url"],
-                "https://static.rolfje.com/private/podfix/data/public/media-change-me/losse-eindjes/episodes/episode.mp3?v=2",
+                "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/episode.mp3?v=2",
             )
 
     def test_normalize_record_urls_upgrades_legacy_local_episode_url(self) -> None:
@@ -280,7 +280,7 @@ class RebuildImagesTests(unittest.TestCase):
                 slug="losse-eindjes",
                 upstream_feed_url="https://example.com/feed.xml",
                 episode_title_include=None,
-                base_url="https://static.rolfje.com/private/podfix/data/public",
+                base_url="https://static.example.com/private/podfix/data/published",
                 output_dir=Path(temp_dir),
                 keep_original_downloads=False,
                 cache_artwork=False,
@@ -295,14 +295,14 @@ class RebuildImagesTests(unittest.TestCase):
             normalized = _normalize_record_urls(
                 config,
                 {
-                    "enclosure_url": "https://static.rolfje.com/private/podfix/data/public/episodes/episode.mp3",
+                    "enclosure_url": "https://static.example.com/private/podfix/data/published/episodes/episode.mp3",
                 },
                 1,
             )
 
         self.assertEqual(
             normalized["enclosure_url"],
-            "https://static.rolfje.com/private/podfix/data/public/media-change-me/losse-eindjes/episodes/episode.mp3?v=1",
+            "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/episode.mp3?v=1",
         )
 
 

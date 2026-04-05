@@ -30,7 +30,7 @@ See [Private nginx hosting](#private-nginx-hosting) below for an example setup w
 - Keeps local state so unchanged episodes are skipped on normal sync runs
 - Downloads audio or video enclosures
 - Transcodes everything to MP3 with spoken-word defaults, compression, and optional loudness normalization
-- Regenerates one output feed per configured podcast under a static `public/` directory
+- Regenerates one output feed per configured podcast under a static `published/` directory
 - Can cache and badge artwork locally with a blue `COMPRESSED` pill
 - Preserves show artwork and per-episode artwork in the generated feed
 - Generates a root landing page that lists all configured podcasts
@@ -43,7 +43,7 @@ The generated output tree looks like this:
 ```text
 output/
   data/
-    public/
+    published/
       index.html
       media-change-me/
         dai-carter/
@@ -57,11 +57,11 @@ output/
     downloads/
 ```
 
-Each configured podcast gets its own subdirectory under `public/`. The root `public/index.html` lists all shows and links to each feed page.
+Each configured podcast gets its own subdirectory under `published/`. The root `published/index.html` lists all shows and links to each feed page.
 
-Only published MP3s are retained under `public/<media_path_token>/<slug>/episodes/` by default. If `keep_original_downloads = true`, the original source files are also kept under `downloads/<slug>/` for debugging.
+Only published MP3s are retained under `published/<media_path_token>/<slug>/episodes/` by default. If `keep_original_downloads = true`, the original source files are also kept under `downloads/<slug>/` for debugging.
 
-Serve `output/data/public/` with any static web server, or use the built-in convenience command.
+Serve `output/data/published/` with any static web server, or use the built-in convenience command.
 
 ## Requirements
 
@@ -289,7 +289,7 @@ http://localhost:8080/<slug>/feed.xml
 
 ## Private nginx hosting
 
-If you publish the generated files from nginx, keep the podcast area behind authentication so the setup stays personal/private. One simple way is to serve the generated files from a protected path such as `/private/`:
+If you publish the generated files from nginx, keep the podcast area behind authentication so the setup stays personal/private. One simple way is to serve the generated files from a protected path such as `/private/podfix/data/published/`:
 
 ```nginx
 server {
@@ -301,7 +301,7 @@ server {
 
     # Tokenized MP3 files stay hard to guess, are not gzip-compressed,
     # and tell bots not to index or cache them.
-    location ~* ^/private/media-change-me/.*\.mp3$ {
+    location ~* ^/private/podfix/data/published/media-change-me/.*\.mp3$ {
         auth_basic off;
         gzip off;
         add_header X-Robots-Tag "noindex, nofollow, noarchive, nosnippet" always;
@@ -335,15 +335,15 @@ server {
 }
 ```
 
-With a setup like this, your `base_url` should point at the protected path, for example:
+With a setup like this, your `base_url` should point at the generated Podfix root under that protected path, for example:
 
 ```toml
-base_url = "https://example.com/private"
+base_url = "https://example.com/private/podfix/data/published"
 ```
 
 Apple Podcasts has been tested with HTTP Basic Auth in this kind of setup and works with protected feed URLs.
 
-If you serve the generated files from nginx, keep a tokenized unauthenticated MP3 location under `/private/`, disable `gzip` there, and add `X-Robots-Tag` plus `Cache-Control` headers so podcast apps can stream the audio while bots are discouraged from indexing it. Keep the feed and pages themselves behind Basic Auth.
+If you serve the generated files from nginx, keep a tokenized unauthenticated MP3 location under `/private/podfix/data/published/`, disable `gzip` there, and add `X-Robots-Tag` plus `Cache-Control` headers so podcast apps can stream the audio while bots are discouraged from indexing it. Keep the feed and pages themselves behind Basic Auth.
 
 ## Scheduling synchronization
 

@@ -79,7 +79,7 @@ Public base URL where generated podcast pages, feeds, artwork, and episode files
 
 ### `output_dir`
 
-Root directory used for generated data. Podfix writes to `output_dir/data/`.
+Root directory used for generated data. Podfix writes to `output_dir/data/`, with generated feeds, pages, artwork, and published media under `output_dir/data/published/`.
 
 ### `include`
 

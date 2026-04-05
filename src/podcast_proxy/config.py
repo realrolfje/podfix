@@ -84,7 +84,7 @@ class PodcastConfig:
 
     @property
     def public_root_dir(self) -> Path:
-        return self.data_dir / "public"
+        return self.data_dir / "published"
 
     @property
     def public_dir(self) -> Path:
@@ -169,7 +169,7 @@ class AppConfig:
 
     @property
     def public_dir(self) -> Path:
-        return self.output_dir / "data" / "public"
+        return self.output_dir / "data" / "published"
 
     @property
     def public_index(self) -> Path:
