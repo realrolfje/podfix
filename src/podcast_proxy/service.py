@@ -92,6 +92,9 @@ def _summary_from_state(
         episode_state,
         enclosure_url_version,
     )
+    state_changed = (
+        _drop_unavailable_episode_state(config, episode_state) or state_changed
+    )
     metadata_changed = metadata != state.get("feed", {}).get("metadata", {})
     if state_changed or metadata_changed:
         next_state = dict(state)
@@ -105,6 +108,7 @@ def _summary_from_state(
         _resolved_mode(metadata),
         config.max_episodes,
     )
+    episode_records = _available_episode_records(config, episode_records)
     episode_records = [
         _normalize_record_urls(config, record, enclosure_url_version)
         for record in episode_records
@@ -151,6 +155,9 @@ def _sync_podcast(
                 episode_state,
                 enclosure_url_version,
             )
+            state_changed = (
+                _drop_unavailable_episode_state(config, episode_state) or state_changed
+            )
             metadata_changed = metadata != state.get("feed", {}).get("metadata", {})
             if state_changed or metadata_changed:
                 next_state = dict(state)
@@ -165,6 +172,7 @@ def _sync_podcast(
                 _resolved_mode(metadata),
                 config.max_episodes,
             )
+            episode_records = _available_episode_records(config, episode_records)
             episode_records = [
                 _normalize_record_urls(config, record, enclosure_url_version)
                 for record in episode_records
@@ -276,7 +284,22 @@ def _sync_podcast(
         next_episode_state,
         enclosure_url_version,
     )
+    _drop_unavailable_episode_state(config, next_episode_state)
+    if rebuild:
+        ordered_records = _renderable_records(
+            next_episode_state.values(),
+            snapshot.resolved_mode,
+            config.max_episodes,
+        )
+    else:
+        ordered_records = _ordered_records(
+            snapshot.episodes,
+            next_episode_state,
+            snapshot.resolved_mode,
+            config.max_episodes,
+        )
     _ensure_public_files_for_records(config, ordered_records)
+    ordered_records = _available_episode_records(config, ordered_records)
     ordered_records = [
         _normalize_record_urls(config, record, enclosure_url_version)
         for record in ordered_records
@@ -579,6 +602,45 @@ def _ensure_public_files_for_records(
             record["public_media_file"] = desired_public_media_file
 
 
+def _available_episode_records(
+    config: PodcastConfig,
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    available_records: list[dict[str, Any]] = []
+    for record in records:
+        processed_name = str(record.get("processed_file") or "").strip()
+        if not processed_name:
+            LOGGER.warning(
+                "omitting episode from %s feed because it has no processed file: %s",
+                config.slug,
+                record.get("guid") or record.get("title") or "<unknown>",
+            )
+            continue
+        desired_processed_name = _desired_processed_name(config, record)
+        desired_public_media_file = config.public_media_relative_path(
+            desired_processed_name
+        )
+        public_path = ensure_public_episode_path(
+            config,
+            processed_name,
+            str(record.get("public_media_file") or "").strip() or None,
+            desired_processed_name,
+            desired_public_media_file,
+        )
+        if public_path is None or not public_path.exists():
+            LOGGER.warning(
+                "omitting episode from %s feed because published file is missing: %s",
+                config.slug,
+                record.get("guid") or record.get("title") or "<unknown>",
+            )
+            continue
+        record["processed_file"] = desired_processed_name
+        record["public_media_file"] = desired_public_media_file
+        record["enclosure_length"] = public_path.stat().st_size
+        available_records.append(record)
+    return available_records
+
+
 def _prepare_episode_state_for_render(
     config: PodcastConfig,
     episode_state: dict[str, dict[str, Any]],
@@ -635,6 +697,41 @@ def _prepare_episode_state_for_render(
             record["enclosure_url"] = normalized_enclosure_url
             changed = True
     return changed
+
+
+def _drop_unavailable_episode_state(
+    config: PodcastConfig,
+    episode_state: dict[str, dict[str, Any]],
+) -> bool:
+    removed_guids: list[str] = []
+    for guid, record in episode_state.items():
+        processed_name = str(record.get("processed_file") or "").strip()
+        if not processed_name:
+            removed_guids.append(guid)
+            LOGGER.warning(
+                "dropping %s state because it has no processed file: %s",
+                config.slug,
+                guid,
+            )
+            continue
+        public_media_file = str(record.get("public_media_file") or "").strip().strip("/")
+        if not public_media_file:
+            public_media_file = config.public_media_relative_path(processed_name)
+        public_path = ensure_public_episode_path(
+            config,
+            processed_name,
+            public_media_file or None,
+        )
+        if public_path is None or not public_path.exists():
+            removed_guids.append(guid)
+            LOGGER.warning(
+                "dropping %s state because published file is missing: %s",
+                config.slug,
+                guid,
+            )
+    for guid in removed_guids:
+        episode_state.pop(guid, None)
+    return bool(removed_guids)
 
 
 def _report_stale_public_files(

@@ -9,6 +9,8 @@ from podcast_proxy.config import FFMpegConfig, HTTPConfig, PodcastConfig
 from podcast_proxy.feed import Episode
 from podcast_proxy.rss import write_feed
 from podcast_proxy.service import (
+    _available_episode_records,
+    _drop_unavailable_episode_state,
     _ensure_public_files_for_records,
     _next_enclosure_url_version,
     _normalize_record_urls,
@@ -494,6 +496,81 @@ class RebuildImagesTests(unittest.TestCase):
                 enclosure.attrib["url"],
                 "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/WO_KN_20309964.mp3",
             )
+
+    def test_available_episode_records_filters_missing_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=False,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            existing_path = config.public_episodes_dir / "guid-1.mp3"
+            existing_path.parent.mkdir(parents=True, exist_ok=True)
+            existing_path.write_bytes(b"audio")
+            records = [
+                {
+                    "guid": "guid-1",
+                    "title": "Available episode",
+                    "processed_file": "guid-1.mp3",
+                },
+                {
+                    "guid": "guid-2",
+                    "title": "Missing episode",
+                    "processed_file": "guid-2.mp3",
+                },
+            ]
+
+            with self.assertLogs("podcast_proxy.service", level="WARNING") as captured:
+                available = _available_episode_records(config, records)
+
+            self.assertEqual(len(available), 1)
+            self.assertEqual(available[0]["guid"], "guid-1")
+            self.assertEqual(available[0]["enclosure_length"], 5)
+            self.assertIn("omitting episode from losse-eindjes feed", captured.output[0])
+
+    def test_drop_unavailable_episode_state_removes_missing_episode(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=False,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            episode_state = {
+                "guid-1": {
+                    "guid": "guid-1",
+                    "processed_file": "guid-1.mp3",
+                    "public_media_file": "media-change-me/losse-eindjes/episodes/guid-1.mp3",
+                }
+            }
+
+            with self.assertLogs("podcast_proxy.service", level="WARNING") as captured:
+                changed = _drop_unavailable_episode_state(config, episode_state)
+
+            self.assertTrue(changed)
+            self.assertEqual(episode_state, {})
+            self.assertIn("dropping losse-eindjes state because published file is missing", captured.output[0])
 
 
 if __name__ == "__main__":
