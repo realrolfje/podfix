@@ -39,6 +39,11 @@ def main() -> None:
         action="store_true",
         help="delete stale published files that are no longer referenced by state",
     )
+    sync_parser.add_argument(
+        "--all-episodes",
+        action="store_true",
+        help="process every missing episode in the selected feed window instead of only one",
+    )
 
     rebuild_parser = subparsers.add_parser("rebuild")
     rebuild_parser.add_argument("--config", required=True)
@@ -102,6 +107,7 @@ def main() -> None:
             rebuild=False,
             podcast_slugs=args.podcasts,
             clean_stale=args.clean_stale,
+            process_all_episodes=args.all_episodes,
         )
         print(index_path)
         return

@@ -16,6 +16,7 @@ from podcast_proxy.service import (
     _next_enclosure_url_version,
     _normalize_metadata_urls,
     _normalize_record_urls,
+    _episodes_to_process,
     _prepare_episode_state_for_render,
     _report_stale_public_files,
     _rebuild_episode_artwork,
@@ -25,6 +26,74 @@ from podcast_proxy.state import StateStore
 
 
 class RebuildImagesTests(unittest.TestCase):
+    def test_sync_processes_one_missing_episode_by_default(self) -> None:
+        episodes = [
+            Episode(
+                guid=f"guid-{index}",
+                title=f"Episode {index}",
+                description="",
+                published=f"Thu, {index:02d} Dec 2025 15:47:00 +0100",
+                enclosure_url=f"https://upstream.example.com/{index}.mp3",
+                enclosure_type="audio/mpeg",
+                source_kind="audio",
+                slug=f"episode-{index}",
+                author=None,
+                original_link=None,
+                image_url=None,
+                explicit="false",
+            )
+            for index in range(3, 0, -1)
+        ]
+
+        to_process = _episodes_to_process(
+            episodes,
+            episode_state={},
+            resolved_mode="news",
+            previous_mode="news",
+            max_episodes=5,
+            rebuild=False,
+            process_all_episodes=False,
+        )
+
+        self.assertEqual([episode.guid for episode in to_process], ["guid-3"])
+
+    def test_sync_processes_all_missing_episodes_when_requested(self) -> None:
+        episodes = [
+            Episode(
+                guid=f"guid-{index}",
+                title=f"Episode {index}",
+                description="",
+                published=f"Thu, {index:02d} Dec 2025 15:47:00 +0100",
+                enclosure_url=f"https://upstream.example.com/{index}.mp3",
+                enclosure_type="audio/mpeg",
+                source_kind="audio",
+                slug=f"episode-{index}",
+                author=None,
+                original_link=None,
+                image_url=None,
+                explicit="false",
+            )
+            for index in range(5, 0, -1)
+        ]
+        episode_state = {
+            "guid-5": {
+                "guid": "guid-5",
+                "signature": "guid-5|audio/mpeg|Thu, 05 Dec 2025 15:47:00 +0100|Episode 5",
+            }
+        }
+
+        to_process = _episodes_to_process(
+            episodes,
+            episode_state=episode_state,
+            resolved_mode="news",
+            previous_mode="news",
+            max_episodes=3,
+            rebuild=False,
+            process_all_episodes=True,
+        )
+
+        self.assertEqual([episode.guid for episode in to_process], ["guid-4", "guid-3"])
+
     def test_rebuild_images_refreshes_enclosure_url_from_public_media_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config = PodcastConfig(
@@ -535,6 +604,7 @@ class RebuildImagesTests(unittest.TestCase):
                     rebuild=False,
                     rebuild_images=False,
                     clean_stale=False,
+                    process_all_episodes=False,
                 )
 
             saved_state = StateStore(config.state_file).load()

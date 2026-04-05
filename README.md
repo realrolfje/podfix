@@ -223,6 +223,12 @@ Sync new items:
 ./podfix.sh sync --config config.toml
 ```
 
+Process every missing episode in the selected feed window for one podcast:
+
+```bash
+./podfix.sh sync --config config.toml --podcast my-series --all-episodes
+```
+
 Sync only one show:
 
 ```bash
@@ -380,6 +386,7 @@ Normalization notes:
 ## Notes
 
 - `sync` processes at most one episode per podcast on each run.
+- `sync --all-episodes` processes every missing episode in the selected feed window for the selected podcast(s) in one run.
 - For `news` podcasts that one episode is the newest upstream item.
 - For `story` podcasts that one episode is the oldest not-yet-synced item inside the configured episode window.
 - For `news`, the episode window is the newest `max_episodes` items.

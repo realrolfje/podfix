@@ -30,6 +30,7 @@ def sync(
     rebuild_images: bool = False,
     podcast_slugs: list[str] | None = None,
     clean_stale: bool = False,
+    process_all_episodes: bool = False,
 ) -> Path:
     _cleanup_legacy_root_public(config)
     selected_podcasts = _selected_podcasts(config, podcast_slugs)
@@ -41,6 +42,7 @@ def sync(
                 rebuild=rebuild,
                 rebuild_images=rebuild_images,
                 clean_stale=clean_stale,
+                process_all_episodes=process_all_episodes,
             )
         )
     summaries: list[dict[str, Any]] = []
@@ -127,6 +129,7 @@ def _sync_podcast(
     rebuild: bool,
     rebuild_images: bool,
     clean_stale: bool,
+    process_all_episodes: bool,
 ) -> dict[str, Any]:
     state_store = StateStore(config.state_file)
     state = state_store.load()
@@ -218,6 +221,7 @@ def _sync_podcast(
             previous_mode,
             config.max_episodes,
             rebuild,
+            process_all_episodes,
         )
 
     for episode in episodes_to_process:
@@ -918,11 +922,22 @@ def _episodes_to_process(
     previous_mode: str,
     max_episodes: int | None,
     rebuild: bool,
+    process_all_episodes: bool,
 ) -> list[Episode]:
     if rebuild:
         return _episodes_to_rebuild(episodes, episode_state)
     if not episodes:
         return []
+    if process_all_episodes:
+        eligible_episodes = _eligible_feed_window(episodes, resolved_mode, max_episodes)
+        return [
+            episode
+            for episode in eligible_episodes
+            if (
+                (previous := episode_state.get(episode.guid)) is None
+                or not _record_matches_episode(previous, episode)
+            )
+        ]
     if resolved_mode == "story" and previous_mode != "story":
         for episode in episodes:
             previous = episode_state.get(episode.guid)
