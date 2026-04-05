@@ -3,20 +3,23 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import xml.etree.ElementTree as ET
 
 from podcast_proxy.config import FFMpegConfig, HTTPConfig, PodcastConfig
-from podcast_proxy.feed import Episode
+from podcast_proxy.feed import Episode, FeedSnapshot
 from podcast_proxy.rss import write_feed
 from podcast_proxy.service import (
     _available_episode_records,
     _drop_unavailable_episode_state,
     _ensure_public_files_for_records,
     _next_enclosure_url_version,
+    _normalize_metadata_urls,
     _normalize_record_urls,
     _prepare_episode_state_for_render,
     _report_stale_public_files,
     _rebuild_episode_artwork,
+    _sync_podcast,
 )
 from podcast_proxy.state import StateStore
 
@@ -364,6 +367,187 @@ class RebuildImagesTests(unittest.TestCase):
                 b"audio",
             )
             self.assertFalse(old_path.exists())
+
+    def test_prepare_episode_state_for_render_clears_missing_local_artwork(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=True,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            episode_state = {
+                "guid-1": {
+                    "guid": "guid-1",
+                    "processed_file": "guid-1.mp3",
+                    "public_media_file": "media-change-me/losse-eindjes/episodes/guid-1.mp3",
+                    "enclosure_url": "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/guid-1.mp3",
+                    "image_url": "https://static.example.com/private/podfix/data/published/losse-eindjes/images/missing.jpg",
+                }
+            }
+            public_episode = config.public_episodes_dir / "guid-1.mp3"
+            public_episode.parent.mkdir(parents=True, exist_ok=True)
+            public_episode.write_bytes(b"audio")
+
+            with self.assertLogs("podcast_proxy.service", level="WARNING") as captured:
+                changed = _prepare_episode_state_for_render(config, episode_state, 0)
+
+            self.assertTrue(changed)
+            self.assertIsNone(episode_state["guid-1"]["image_url"])
+            self.assertIn("clearing missing local artwork reference", captured.output[0])
+
+    def test_normalize_metadata_urls_clears_missing_local_artwork(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=True,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+
+            with self.assertLogs("podcast_proxy.service", level="WARNING") as captured:
+                normalized = _normalize_metadata_urls(
+                    config,
+                    {
+                        "title": "Losse eindjes",
+                        "image_url": "https://static.example.com/private/podfix/data/published/losse-eindjes/images/missing.jpg",
+                    },
+                )
+
+            self.assertIsNone(normalized["image_url"])
+            self.assertIn("clearing missing local artwork reference", captured.output[0])
+
+    def test_sync_refreshes_missing_local_artwork_for_existing_episode(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=True,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            public_episode = config.public_episodes_dir / "guid-1.mp3"
+            public_episode.parent.mkdir(parents=True, exist_ok=True)
+            public_episode.write_bytes(b"audio")
+
+            episode = Episode(
+                guid="guid-1",
+                title="Available episode",
+                description="desc",
+                published="Thu, 11 Dec 2025 15:47:00 +0100",
+                enclosure_url="https://upstream.example.com/audio.mp3",
+                enclosure_type="audio/mpeg",
+                source_kind="audio",
+                slug="episode",
+                author=None,
+                original_link=None,
+                image_url="https://upstream.example.com/art.jpg",
+                explicit="false",
+            )
+            state = {
+                "feed": {
+                    "metadata": {
+                        "title": "Losse eindjes",
+                        "description": "desc",
+                        "resolved_mode": "news",
+                    }
+                },
+                "episodes": {
+                    "guid-1": {
+                        "guid": "guid-1",
+                        "title": "Available episode",
+                        "description": "desc",
+                        "published": "Thu, 11 Dec 2025 15:47:00 +0100",
+                        "processed_file": "guid-1.mp3",
+                        "public_media_file": "media-change-me/losse-eindjes/episodes/guid-1.mp3",
+                        "enclosure_url": "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/guid-1.mp3",
+                        "enclosure_length": 5,
+                        "enclosure_type": "audio/mpeg",
+                        "image_url": "https://static.example.com/private/podfix/data/published/losse-eindjes/images/missing.jpg",
+                        "signature": "guid-1|audio/mpeg|Thu, 11 Dec 2025 15:47:00 +0100|Available episode",
+                        "source_signature": "https://upstream.example.com/audio.mp3|audio/mpeg|Thu, 11 Dec 2025 15:47:00 +0100|Available episode",
+                    }
+                },
+            }
+            StateStore(config.state_file).save(state)
+            refreshed_image_url = (
+                "https://static.example.com/private/podfix/data/published/losse-eindjes/images/refreshed.jpg"
+            )
+            refreshed_image = config.public_images_dir / "refreshed.jpg"
+            refreshed_image.parent.mkdir(parents=True, exist_ok=True)
+            refreshed_image.write_bytes(b"art")
+
+            with (
+                patch("podcast_proxy.service.make_session", return_value=object()),
+                patch(
+                    "podcast_proxy.service.fetch_feed",
+                    return_value=FeedSnapshot(
+                        metadata={
+                            "title": "Losse eindjes",
+                            "description": "desc",
+                            "resolved_mode": "news",
+                        },
+                        episodes=[episode],
+                        etag="etag-1",
+                        last_modified="last-modified-1",
+                        resolved_mode="news",
+                    ),
+                ),
+                patch(
+                    "podcast_proxy.service._process_episode_artwork",
+                    return_value=refreshed_image_url,
+                ) as process_episode_artwork,
+                patch("podcast_proxy.service.write_feed"),
+                patch("podcast_proxy.service.write_podcast_index"),
+                patch("podcast_proxy.service.write_library_index"),
+            ):
+                summary = _sync_podcast(
+                    config,
+                    rebuild=False,
+                    rebuild_images=False,
+                    clean_stale=False,
+                )
+
+            saved_state = StateStore(config.state_file).load()
+            self.assertEqual(summary["episode_count"], 1)
+            self.assertEqual(
+                saved_state["episodes"]["guid-1"]["image_url"],
+                refreshed_image_url,
+            )
+            process_episode_artwork.assert_called_once_with(
+                unittest.mock.ANY,
+                config,
+                "https://upstream.example.com/art.jpg",
+            )
 
     def test_report_stale_public_files_logs_orphaned_mp3(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

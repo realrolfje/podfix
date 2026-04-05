@@ -203,6 +203,14 @@ def _sync_podcast(
         )
         episodes_to_process: list[Episode] = []
     else:
+        _refresh_missing_episode_artwork(
+            session,
+            config,
+            snapshot.episodes,
+            next_episode_state,
+            snapshot.resolved_mode,
+            config.max_episodes,
+        )
         episodes_to_process = _episodes_to_process(
             snapshot.episodes,
             episode_state,
@@ -399,6 +407,38 @@ def _rebuild_episode_artwork(
     return next_episode_state
 
 
+def _refresh_missing_episode_artwork(
+    session: Any,
+    config: PodcastConfig,
+    episodes: list[Episode],
+    episode_state: dict[str, dict[str, Any]],
+    resolved_mode: str,
+    max_episodes: int | None,
+) -> bool:
+    changed = False
+    for episode in _eligible_feed_window(episodes, resolved_mode, max_episodes):
+        previous = episode_state.get(episode.guid)
+        if not previous or not _record_matches_episode(previous, episode):
+            continue
+        image_url = previous.get("image_url")
+        if _has_public_artwork_copy(config, image_url):
+            continue
+        LOGGER.warning(
+            "public artwork missing for %s, refreshing artwork: %s",
+            config.slug,
+            episode.title,
+        )
+        previous["image_url"] = _process_episode_artwork(
+            session,
+            config,
+            episode.image_url,
+        )
+        previous["signature"] = _episode_signature(episode)
+        previous["source_signature"] = _source_signature(episode)
+        changed = True
+    return changed
+
+
 def _podcast_summary(
     config: PodcastConfig,
     metadata: dict[str, Any],
@@ -422,8 +462,12 @@ def _normalize_metadata_urls(
 ) -> dict[str, Any]:
     normalized = dict(metadata)
     if normalized.get("image_url"):
-        normalized["image_url"] = _normalize_local_artwork_url(
+        normalized_image_url = _normalize_local_artwork_url(
             config, normalized["image_url"]
+        )
+        normalized["image_url"] = _clear_missing_local_artwork_url(
+            config,
+            normalized_image_url,
         )
     return normalized
 
@@ -435,8 +479,12 @@ def _normalize_record_urls(
 ) -> dict[str, Any]:
     normalized = dict(record)
     if normalized.get("image_url"):
-        normalized["image_url"] = _normalize_local_artwork_url(
+        normalized_image_url = _normalize_local_artwork_url(
             config, normalized["image_url"]
+        )
+        normalized["image_url"] = _clear_missing_local_artwork_url(
+            config,
+            normalized_image_url,
         )
     published_relative_path = _public_media_relative_path(
         config,
@@ -580,6 +628,13 @@ def _has_public_copy(config: PodcastConfig, record: dict[str, Any]) -> bool:
     return True
 
 
+def _has_public_artwork_copy(config: PodcastConfig, image_url: object) -> bool:
+    image_path = _local_public_path_from_url(config, image_url)
+    if image_path is None:
+        return True
+    return image_path.exists()
+
+
 def _ensure_public_files_for_records(
     config: PodcastConfig,
     records: list[dict[str, Any]],
@@ -653,8 +708,12 @@ def _prepare_episode_state_for_render(
                 config,
                 str(record["image_url"]),
             )
-            if normalized_image_url != record.get("image_url"):
-                record["image_url"] = normalized_image_url
+            next_image_url = _clear_missing_local_artwork_url(
+                config,
+                normalized_image_url,
+            )
+            if next_image_url != record.get("image_url"):
+                record["image_url"] = next_image_url
                 changed = True
 
         processed_name = str(record.get("processed_file") or "").strip()
@@ -798,6 +857,23 @@ def _local_public_path_from_url(config: PodcastConfig, url: object) -> Path | No
         relative_path = value[len(public_base) :].strip("/")
         if relative_path:
             return config.public_dir / relative_path
+    return None
+
+
+def _clear_missing_local_artwork_url(
+    config: PodcastConfig,
+    image_url: object,
+) -> str | None:
+    value = str(image_url or "").strip()
+    if not value:
+        return None
+    if _has_public_artwork_copy(config, value):
+        return value
+    LOGGER.warning(
+        "clearing missing local artwork reference for %s: %s",
+        config.slug,
+        value,
+    )
     return None
 
 
