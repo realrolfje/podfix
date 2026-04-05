@@ -120,7 +120,7 @@ class MediaSafetyTests(unittest.TestCase):
     def test_rebuild_success_replaces_public_mp3_atomically(self) -> None:
         source_path = self.config.downloads_dir / "episode-1.mp3"
         source_path.write_bytes(b"source")
-        public_path = self.config.public_episodes_dir / "episode-1.mp3"
+        public_path = self.config.public_episodes_dir / "ep-1.mp3"
         public_path.write_bytes(b"old-public")
 
         def fake_run(command: list[str], capture_output: bool, text: bool, check: bool):
@@ -145,7 +145,7 @@ class MediaSafetyTests(unittest.TestCase):
         self.assertEqual(result, public_path)
         self.assertEqual(public_path.read_bytes(), b"new-public")
         self.assertFalse(source_path.exists())
-        self.assertFalse(public_path.with_name("episode-1.part.mp3").exists())
+        self.assertFalse(public_path.with_name("ep-1.part.mp3").exists())
 
     def test_existing_legacy_public_mp3_is_moved_to_tokenized_directory(self) -> None:
         legacy_path = self.config.legacy_public_episodes_dir / "episode-1.mp3"
@@ -161,6 +161,24 @@ class MediaSafetyTests(unittest.TestCase):
         self.assertEqual(result, self.config.public_episodes_dir / "episode-1.mp3")
         self.assertEqual(result.read_bytes(), b"legacy-public")
         self.assertFalse(legacy_path.exists())
+
+    def test_existing_tokenized_public_mp3_is_renamed_to_guid_filename(self) -> None:
+        current_relative = self.config.public_media_relative_path("episode-1.mp3")
+        current_path = self.config.public_root_dir / current_relative
+        current_path.parent.mkdir(parents=True, exist_ok=True)
+        current_path.write_bytes(b"old-public")
+
+        result = ensure_public_episode_path(
+            self.config,
+            "episode-1.mp3",
+            current_relative,
+            "ep-1.mp3",
+            self.config.public_media_relative_path("ep-1.mp3"),
+        )
+
+        self.assertEqual(result, self.config.public_episodes_dir / "ep-1.mp3")
+        self.assertEqual(result.read_bytes(), b"old-public")
+        self.assertFalse(current_path.exists())
 
     def test_download_suffix_ignores_query_string(self) -> None:
         self.assertEqual(

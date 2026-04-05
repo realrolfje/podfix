@@ -57,7 +57,7 @@ def transcode_media_with_options(
     episode: Episode,
     force: bool,
 ) -> Path:
-    public_path = config.public_episodes_dir / f"{episode.slug}.mp3"
+    public_path = config.public_episodes_dir / config.published_episode_filename(episode.guid)
     migrated_path = ensure_public_episode_path(config, public_path.name)
     if migrated_path is not None:
         public_path = migrated_path
@@ -157,16 +157,31 @@ def ensure_public_episode_path(
     config: PodcastConfig,
     processed_name: str,
     published_relative_path: str | None = None,
+    target_processed_name: str | None = None,
+    target_relative_path: str | None = None,
 ) -> Path | None:
-    if published_relative_path:
-        public_path = config.public_root_dir / published_relative_path
+    resolved_processed_name = target_processed_name or processed_name
+    resolved_relative_path = target_relative_path or published_relative_path
+    if resolved_relative_path:
+        public_path = config.public_root_dir / resolved_relative_path
     else:
-        public_path = config.public_episodes_dir / processed_name
+        public_path = config.public_episodes_dir / resolved_processed_name
     if public_path.exists():
         return public_path
-    legacy_path = config.legacy_public_episodes_dir / processed_name
-    if not legacy_path.exists():
-        return None
-    public_path.parent.mkdir(parents=True, exist_ok=True)
-    legacy_path.replace(public_path)
-    return public_path
+    current_paths: list[Path] = []
+    if published_relative_path:
+        current_paths.append(config.public_root_dir / published_relative_path)
+    current_paths.append(config.public_episodes_dir / processed_name)
+    current_paths.append(config.legacy_public_episodes_dir / processed_name)
+    seen: set[Path] = set()
+    for current_path in current_paths:
+        if current_path in seen:
+            continue
+        seen.add(current_path)
+        if not current_path.exists():
+            continue
+        public_path.parent.mkdir(parents=True, exist_ok=True)
+        if current_path != public_path:
+            current_path.replace(public_path)
+        return public_path
+    return None

@@ -11,6 +11,7 @@ from podcast_proxy.service import (
     _next_enclosure_url_version,
     _normalize_record_urls,
     _prepare_episode_state_for_render,
+    _report_stale_public_files,
     _rebuild_episode_artwork,
 )
 
@@ -68,7 +69,7 @@ class RebuildImagesTests(unittest.TestCase):
 
         self.assertEqual(
             rebuilt[episode.guid]["enclosure_url"],
-            "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3",
+            "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/WO_KN_20309964.mp3",
         )
 
     def test_rebuild_images_uses_versioned_enclosure_urls(self) -> None:
@@ -123,7 +124,7 @@ class RebuildImagesTests(unittest.TestCase):
 
         self.assertEqual(
             rebuilt[episode.guid]["enclosure_url"],
-            "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/Thu-11-Dec-2025-15-47-00-0100-Nieuwe-Podcast-Losse-Eindjes-WO_KN_20309964.mp3?v=2",
+            "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/WO_KN_20309964.mp3?v=2",
         )
 
     def test_normalize_record_urls_prefers_public_media_file_and_version(self) -> None:
@@ -195,11 +196,11 @@ class RebuildImagesTests(unittest.TestCase):
 
             _ensure_public_files_for_records(
                 config,
-                [{"processed_file": "episode.mp3"}],
+                [{"guid": "guid-1", "processed_file": "episode.mp3"}],
             )
 
             self.assertEqual(
-                (config.public_episodes_dir / "episode.mp3").read_bytes(),
+                (config.public_episodes_dir / "guid-1.mp3").read_bytes(),
                 b"legacy-public",
             )
             self.assertFalse(legacy_path.exists())
@@ -232,6 +233,7 @@ class RebuildImagesTests(unittest.TestCase):
 
             _ensure_public_files_for_records(config, [record])
 
+            self.assertEqual(record["processed_file"], "episode.mp3")
             self.assertEqual(
                 record["public_media_file"],
                 "media-change-me/losse-eindjes/episodes/episode.mp3",
@@ -266,12 +268,16 @@ class RebuildImagesTests(unittest.TestCase):
 
             self.assertTrue(changed)
             self.assertEqual(
+                episode_state["guid-1"]["processed_file"],
+                "guid-1.mp3",
+            )
+            self.assertEqual(
                 episode_state["guid-1"]["public_media_file"],
-                "media-change-me/losse-eindjes/episodes/episode.mp3",
+                "media-change-me/losse-eindjes/episodes/guid-1.mp3",
             )
             self.assertEqual(
                 episode_state["guid-1"]["enclosure_url"],
-                "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/episode.mp3?v=2",
+                "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/guid-1.mp3?v=2",
             )
 
     def test_normalize_record_urls_upgrades_legacy_local_episode_url(self) -> None:
@@ -304,6 +310,85 @@ class RebuildImagesTests(unittest.TestCase):
             normalized["enclosure_url"],
             "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/episode.mp3?v=1",
         )
+
+    def test_prepare_episode_state_for_render_renames_existing_processed_file_to_guid(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=False,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            old_path = config.public_episodes_dir / "old-name.mp3"
+            old_path.parent.mkdir(parents=True, exist_ok=True)
+            old_path.write_bytes(b"audio")
+            episode_state = {
+                "WO_KN_20309964": {
+                    "guid": "WO_KN_20309964",
+                    "processed_file": "old-name.mp3",
+                    "public_media_file": "media-change-me/losse-eindjes/episodes/old-name.mp3",
+                    "enclosure_url": "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/old-name.mp3",
+                }
+            }
+
+            changed = _prepare_episode_state_for_render(config, episode_state, 0)
+
+            self.assertTrue(changed)
+            self.assertEqual(
+                episode_state["WO_KN_20309964"]["processed_file"],
+                "WO_KN_20309964.mp3",
+            )
+            self.assertEqual(
+                episode_state["WO_KN_20309964"]["public_media_file"],
+                "media-change-me/losse-eindjes/episodes/WO_KN_20309964.mp3",
+            )
+            self.assertEqual(
+                (config.public_episodes_dir / "WO_KN_20309964.mp3").read_bytes(),
+                b"audio",
+            )
+            self.assertFalse(old_path.exists())
+
+    def test_report_stale_public_files_logs_orphaned_mp3(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=False,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            config.public_feed.write_text("feed", encoding="utf-8")
+            config.public_index.write_text("index", encoding="utf-8")
+            orphan_path = config.public_episodes_dir / "orphan.mp3"
+            orphan_path.parent.mkdir(parents=True, exist_ok=True)
+            orphan_path.write_bytes(b"orphan")
+
+            with self.assertLogs("podcast_proxy.service", level="WARNING") as captured:
+                _report_stale_public_files(config, {}, [])
+
+        self.assertIn("stale published file for losse-eindjes", captured.output[0])
+        self.assertIn("orphan.mp3", captured.output[0])
 
 
 if __name__ == "__main__":

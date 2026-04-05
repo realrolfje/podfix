@@ -137,6 +137,12 @@ class PodcastConfig:
             return f"{token}/episodes/{processed_name}"
         return f"{token}/{self.slug}/episodes/{processed_name}"
 
+    def published_episode_filename(self, guid: str) -> str:
+        filename = sanitize_filename(str(guid).strip(), fallback="episode")
+        if not filename.lower().endswith(".mp3"):
+            filename = f"{filename}.mp3"
+        return filename
+
     @property
     def feed_url(self) -> str:
         return f"{self.public_base_url}/feed.xml"
