@@ -27,7 +27,7 @@ def write_podcast_index(
 
     items_markup = "\n".join(
         _episode_card(record, fallback_image_url=image_url)
-        for record in episode_records[:10]
+        for record in episode_records
     )
     if not items_markup:
         items_markup = "<p class=\"empty\">No episodes published yet.</p>"
