@@ -48,30 +48,25 @@ def write_podcast_index(
       {mode_badge}
       <div>{image_markup}</div>
       <div>
-        <p class="eyebrow"><a href="{escape(home_href)}">Podfixed:</a></p>
         <h1>{title}</h1>
         <p class="lede">{description}</p>
         <div class="actions">
-          <a class="button rss-button" href="{escape(feed_url)}" aria-label="Open RSS feed">
-            <span class="rss-icon" aria-hidden="true">{_rss_icon()}</span>
-            <span>Open RSS</span>
-          </a>
           <button class="link copy-feed" type="button" data-feed-url="{escape(feed_url)}" aria-label="Copy RSS feed URL">
             <span class="rss-icon" aria-hidden="true">{_rss_icon()}</span>
             <span>Copy RSS Link</span>
           </button>
         </div>
-        <p class="hint">Click"Copy RSS Link" to copy the URL and paste it in your favorite podcast app.
-        You can also open the RSS directly, or click on "Play" on any of the episodes below to listen directly.</p>
+        <p class="hint apple-hint">Apple Podcasts: copy the RSS link, then use "Follow a Show by URL" on iPhone or iPad, or "Add a Show by URL..." on Mac.</p>
+        <div class="search-panel search-panel-hero">
+          <label class="search-label" for="episode-search">Find an episode</label>
+          <input id="episode-search" class="search-input" type="search" placeholder="Type to filter episodes by title or date" autocomplete="off">
+          <p id="episode-search-status" class="search-status" aria-live="polite"></p>
+        </div>
       </div>
-    </section>
-    <section class="search-panel">
-      <label class="search-label" for="episode-search">Find an episode</label>
-      <input id="episode-search" class="search-input" type="search" placeholder="Type to filter episodes by title or date" autocomplete="off">
-      <p id="episode-search-status" class="search-status" aria-live="polite">Showing all episodes.</p>
     </section>
     <section>
       <h2>Recent Episodes</h2>
+      <p id="episode-search-empty" class="empty search-empty" aria-live="polite"></p>
       <div class="episodes" id="episode-list">
         {items_markup}
       </div>
@@ -103,22 +98,23 @@ def write_library_index(app_config: AppConfig, podcasts: list[dict[str, Any]]) -
   <main>
     <section class="hero hero-library">
       <div>
-        <h1>Podfix Library</h1>
-        <p class="lede">Below is a list of podcasts which are post-processed so that speech is
-        clear and of equal level between speakers as much as possible. The bitrate is also reduced
-        to a more storage- and network friendly size. Click a show image
+        <h1>Your Podfix Library</h1>
+        <p class="lede">Below are your podcasts, post-processed so that speech is
+        clear and of equal level between speakers as much as possible. Click on the show image 
         for details per show, or use the "Copy RSS Link" to add the link to your favourite podcast
         app. Please remember to support the autors of the podcasts below by subscribing to their
         affeliate programs (Podimo, Patreon, Soundcloud, or socials).</p>
+        <p class="hint apple-hint">Using Apple Podcasts? Open a show, copy its RSS link, then add it in Podcasts with "Follow a Show by URL" on iPhone or iPad, or "Add a Show by URL..." on Mac.</p>
+        <div class="search-panel search-panel-hero">
+          <label class="search-label" for="podcast-search">Find a show</label>
+          <input id="podcast-search" class="search-input" type="search" placeholder="Type to filter podcasts by title or description" autocomplete="off">
+          <p id="podcast-search-status" class="search-status" aria-live="polite"></p>
+        </div>
       </div>
-    </section>
-    <section class="search-panel">
-      <label class="search-label" for="podcast-search">Find a show</label>
-      <input id="podcast-search" class="search-input" type="search" placeholder="Type to filter podcasts by title or description" autocomplete="off">
-      <p id="podcast-search-status" class="search-status" aria-live="polite">Showing all podcasts.</p>
     </section>
     <section>
       <h2>Available Podcasts</h2>
+      <p id="podcast-search-empty" class="empty search-empty" aria-live="polite"></p>
       <div class="podcasts" id="podcast-list">
         {cards}
       </div>
@@ -249,7 +245,7 @@ def _shared_css() -> str:
     main {
       max-width: 980px;
       margin: 0 auto;
-      padding: 40px 20px 64px;
+      padding: 24px 20px 40px;
     }
     .hero {
       display: grid;
@@ -260,7 +256,7 @@ def _shared_css() -> str:
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 28px;
-      padding: 24px;
+      padding: 20px;
       box-shadow: var(--shadow);
     }
     .hero-library {
@@ -337,7 +333,7 @@ def _shared_css() -> str:
       text-decoration: none;
     }
     .lede {
-      margin: 0 0 18px;
+      margin: 0 0 14px;
       color: var(--muted);
       line-height: 1.55;
       font-size: 1.02rem;
@@ -350,7 +346,7 @@ def _shared_css() -> str:
       display: flex;
       flex-wrap: wrap;
       gap: 12px;
-      margin: 20px 0 10px;
+      margin: 16px 0 8px;
     }
     .button, .link {
       display: inline-flex;
@@ -383,12 +379,15 @@ def _shared_css() -> str:
       color: var(--muted);
       font-size: 0.95rem;
     }
+    .apple-hint {
+      margin-top: 8px;
+    }
     section {
-      margin-top: 30px;
+      margin-top: 18px;
       background: rgba(255, 255, 255, 0.72);
       border: 1px solid var(--line);
       border-radius: 24px;
-      padding: 22px;
+      padding: 18px;
       backdrop-filter: blur(10px);
     }
     .episodes {
@@ -459,11 +458,16 @@ def _shared_css() -> str:
     }
     .podcasts {
       display: grid;
-      gap: 18px;
+      gap: 12px;
     }
     .search-panel {
       display: grid;
       gap: 10px;
+    }
+    .search-panel-hero {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
     }
     .search-label {
       font-size: 0.84rem;
@@ -492,6 +496,7 @@ def _shared_css() -> str:
       margin: 0;
       color: var(--muted);
       font-size: 0.95rem;
+      display: none;
     }
     .podcast-card {
       position: relative;
@@ -499,7 +504,7 @@ def _shared_css() -> str:
       grid-template-columns: 160px minmax(0, 1fr);
       gap: 18px;
       align-items: start;
-      padding: 4px 0;
+      padding: 2px 0;
       border-top: 1px solid var(--line);
     }
     .podcast-card:first-child {
@@ -513,6 +518,10 @@ def _shared_css() -> str:
     .empty {
       margin: 0;
       color: var(--muted);
+    }
+    .search-empty {
+      display: none;
+      margin-bottom: 12px;
     }
     @media (max-width: 760px) {
       .hero, .podcast-card {
@@ -599,12 +608,13 @@ def _copy_script() -> str:
         });
       });
 
-      var wireSearch = function (inputId, statusId, selector, singularLabel, pluralLabel) {
+      var wireSearch = function (inputId, statusId, emptyId, selector, singularLabel, pluralLabel) {
         var searchInput = document.getElementById(inputId);
         var searchStatus = document.getElementById(statusId);
+        var emptyState = document.getElementById(emptyId);
         var cards = document.querySelectorAll(selector);
 
-        if (!searchInput || !searchStatus || !cards.length) {
+        if (!searchInput || !searchStatus || !emptyState || !cards.length) {
           return;
         }
 
@@ -622,13 +632,25 @@ def _copy_script() -> str:
           });
 
           if (!query) {
-            searchStatus.textContent = 'Showing all ' + pluralLabel + '.';
+            searchStatus.textContent = '';
+            searchStatus.style.display = 'none';
+            emptyState.textContent = '';
+            emptyState.style.display = 'none';
           } else if (visibleCount === 0) {
-            searchStatus.textContent = 'No ' + pluralLabel + ' match "' + query + '".';
+            searchStatus.textContent = '';
+            searchStatus.style.display = 'none';
+            emptyState.textContent = 'No ' + pluralLabel + ' match "' + query + '".';
+            emptyState.style.display = 'block';
           } else if (visibleCount === 1) {
-            searchStatus.textContent = 'Found 1 matching ' + singularLabel + ' for "' + query + '".';
+            searchStatus.textContent = '';
+            searchStatus.style.display = 'none';
+            emptyState.textContent = '';
+            emptyState.style.display = 'none';
           } else {
-            searchStatus.textContent = 'Found ' + visibleCount + ' matching ' + pluralLabel + ' for "' + query + '".';
+            searchStatus.textContent = '';
+            searchStatus.style.display = 'none';
+            emptyState.textContent = '';
+            emptyState.style.display = 'none';
           }
         };
 
@@ -636,7 +658,7 @@ def _copy_script() -> str:
         updateSearch();
       };
 
-      wireSearch('podcast-search', 'podcast-search-status', '.podcast-card', 'podcast', 'podcasts');
-      wireSearch('episode-search', 'episode-search-status', '.episode', 'episode', 'episodes');
+      wireSearch('podcast-search', 'podcast-search-status', 'podcast-search-empty', '.podcast-card', 'podcast', 'podcasts');
+      wireSearch('episode-search', 'episode-search-status', 'episode-search-empty', '.episode', 'episode', 'episodes');
     }());
     """
