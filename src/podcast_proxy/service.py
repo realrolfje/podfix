@@ -29,6 +29,7 @@ def sync(
     rebuild: bool = False,
     rebuild_images: bool = False,
     podcast_slugs: list[str] | None = None,
+    clean_stale: bool = False,
 ) -> Path:
     _cleanup_legacy_root_public(config)
     selected_podcasts = _selected_podcasts(config, podcast_slugs)
@@ -39,11 +40,15 @@ def sync(
                 podcast,
                 rebuild=rebuild,
                 rebuild_images=rebuild_images,
+                clean_stale=clean_stale,
             )
         )
     summaries: list[dict[str, Any]] = []
     for podcast in config.podcasts:
-        summary = summary_by_slug.get(podcast.slug) or _summary_from_state(podcast)
+        summary = summary_by_slug.get(podcast.slug) or _summary_from_state(
+            podcast,
+            clean_stale=clean_stale,
+        )
         if summary:
             summaries.append(summary)
     summaries.sort(key=lambda item: str(item.get("title", "")).casefold())
@@ -70,7 +75,11 @@ def _selected_podcasts(
     return selected
 
 
-def _summary_from_state(config: PodcastConfig) -> dict[str, Any] | None:
+def _summary_from_state(
+    config: PodcastConfig,
+    *,
+    clean_stale: bool,
+) -> dict[str, Any] | None:
     state_store = StateStore(config.state_file)
     state = state_store.load()
     enclosure_url_version = _state_enclosure_url_version(state)
@@ -100,7 +109,12 @@ def _summary_from_state(config: PodcastConfig) -> dict[str, Any] | None:
         _normalize_record_urls(config, record, enclosure_url_version)
         for record in episode_records
     ]
-    _report_stale_public_files(config, metadata, episode_records)
+    _report_stale_public_files(
+        config,
+        metadata,
+        episode_records,
+        delete_files=clean_stale,
+    )
     return _podcast_summary(config, metadata, episode_records)
 
 
@@ -108,6 +122,7 @@ def _sync_podcast(
     config: PodcastConfig,
     rebuild: bool,
     rebuild_images: bool,
+    clean_stale: bool,
 ) -> dict[str, Any]:
     state_store = StateStore(config.state_file)
     state = state_store.load()
@@ -154,7 +169,12 @@ def _sync_podcast(
                 _normalize_record_urls(config, record, enclosure_url_version)
                 for record in episode_records
             ]
-            _report_stale_public_files(config, metadata, episode_records)
+            _report_stale_public_files(
+                config,
+                metadata,
+                episode_records,
+                delete_files=clean_stale,
+            )
             write_feed(config, metadata, episode_records)
             write_podcast_index(config, metadata, episode_records)
             return _podcast_summary(config, metadata, episode_records)
@@ -262,7 +282,12 @@ def _sync_podcast(
         for record in ordered_records
     ]
     metadata = _normalize_metadata_urls(config, metadata)
-    _report_stale_public_files(config, metadata, ordered_records)
+    _report_stale_public_files(
+        config,
+        metadata,
+        ordered_records,
+        delete_files=clean_stale,
+    )
     write_feed(config, metadata, ordered_records)
     write_podcast_index(config, metadata, ordered_records)
 
@@ -616,6 +641,8 @@ def _report_stale_public_files(
     config: PodcastConfig,
     metadata: dict[str, Any],
     episode_records: list[dict[str, Any]],
+    *,
+    delete_files: bool = False,
 ) -> None:
     expected_files = {
         config.public_feed.resolve(),
@@ -651,7 +678,18 @@ def _report_stale_public_files(
                 continue
             seen.add(resolved)
             if resolved not in expected_files:
-                LOGGER.warning("stale published file for %s: %s", config.slug, path)
+                if delete_files:
+                    path.unlink()
+                    LOGGER.warning(
+                        "deleted stale published file for %s: %s",
+                        config.slug,
+                        path,
+                    )
+                else:
+                    LOGGER.warning("stale published file for %s: %s", config.slug, path)
+    if delete_files:
+        for root in reversed(candidate_roots):
+            _prune_empty_directories(root)
 
 
 def _local_public_path_from_url(config: PodcastConfig, url: object) -> Path | None:
@@ -664,6 +702,16 @@ def _local_public_path_from_url(config: PodcastConfig, url: object) -> Path | No
         if relative_path:
             return config.public_dir / relative_path
     return None
+
+
+def _prune_empty_directories(root: Path) -> None:
+    if not root.exists():
+        return
+    for path in sorted((p for p in root.rglob("*") if p.is_dir()), reverse=True):
+        try:
+            path.rmdir()
+        except OSError:
+            continue
 
 
 def _episode_signature(episode: Episode) -> str:

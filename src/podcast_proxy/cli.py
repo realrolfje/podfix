@@ -29,6 +29,11 @@ def main() -> None:
         default=[],
         help="limit the run to one or more podcast slugs",
     )
+    sync_parser.add_argument(
+        "--clean-stale",
+        action="store_true",
+        help="delete stale published files that are no longer referenced by state",
+    )
 
     rebuild_parser = subparsers.add_parser("rebuild")
     rebuild_parser.add_argument("--config", required=True)
@@ -38,6 +43,11 @@ def main() -> None:
         dest="podcasts",
         default=[],
         help="limit the run to one or more podcast slugs",
+    )
+    rebuild_parser.add_argument(
+        "--clean-stale",
+        action="store_true",
+        help="delete stale published files that are no longer referenced by state",
     )
 
     refresh_parser = subparsers.add_parser("refresh")
@@ -49,6 +59,11 @@ def main() -> None:
         default=[],
         help="limit the run to one or more podcast slugs",
     )
+    refresh_parser.add_argument(
+        "--clean-stale",
+        action="store_true",
+        help="delete stale published files that are no longer referenced by state",
+    )
 
     rebuild_images_parser = subparsers.add_parser("rebuild-images")
     rebuild_images_parser.add_argument("--config", required=True)
@@ -58,6 +73,11 @@ def main() -> None:
         dest="podcasts",
         default=[],
         help="limit the run to one or more podcast slugs",
+    )
+    rebuild_images_parser.add_argument(
+        "--clean-stale",
+        action="store_true",
+        help="delete stale published files that are no longer referenced by state",
     )
 
     serve_parser = subparsers.add_parser("serve")
@@ -72,19 +92,34 @@ def main() -> None:
 
     if args.command == "sync":
         config = load_config(args.config)
-        index_path = sync(config, rebuild=False, podcast_slugs=args.podcasts)
+        index_path = sync(
+            config,
+            rebuild=False,
+            podcast_slugs=args.podcasts,
+            clean_stale=args.clean_stale,
+        )
         print(index_path)
         return
 
     if args.command == "rebuild":
         config = load_config(args.config)
-        index_path = sync(config, rebuild=True, podcast_slugs=args.podcasts)
+        index_path = sync(
+            config,
+            rebuild=True,
+            podcast_slugs=args.podcasts,
+            clean_stale=args.clean_stale,
+        )
         print(index_path)
         return
 
     if args.command == "refresh":
         config = load_config(args.config)
-        index_path = sync(config, rebuild_images=True, podcast_slugs=args.podcasts)
+        index_path = sync(
+            config,
+            rebuild_images=True,
+            podcast_slugs=args.podcasts,
+            clean_stale=args.clean_stale,
+        )
         print(index_path)
         return
 
@@ -93,7 +128,12 @@ def main() -> None:
             "'rebuild-images' is deprecated; use 'refresh' instead"
         )
         config = load_config(args.config)
-        index_path = sync(config, rebuild_images=True, podcast_slugs=args.podcasts)
+        index_path = sync(
+            config,
+            rebuild_images=True,
+            podcast_slugs=args.podcasts,
+            clean_stale=args.clean_stale,
+        )
         print(index_path)
         return
 

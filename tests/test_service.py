@@ -390,6 +390,37 @@ class RebuildImagesTests(unittest.TestCase):
         self.assertIn("stale published file for losse-eindjes", captured.output[0])
         self.assertIn("orphan.mp3", captured.output[0])
 
+    def test_report_stale_public_files_deletes_orphaned_mp3_when_requested(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=False,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            config.public_feed.write_text("feed", encoding="utf-8")
+            config.public_index.write_text("index", encoding="utf-8")
+            orphan_path = config.public_episodes_dir / "orphan.mp3"
+            orphan_path.parent.mkdir(parents=True, exist_ok=True)
+            orphan_path.write_bytes(b"orphan")
+
+            with self.assertLogs("podcast_proxy.service", level="WARNING") as captured:
+                _report_stale_public_files(config, {}, [], delete_files=True)
+
+        self.assertIn("deleted stale published file for losse-eindjes", captured.output[0])
+        self.assertIn("orphan.mp3", captured.output[0])
+        self.assertFalse(orphan_path.exists())
+
 
 if __name__ == "__main__":
     unittest.main()
