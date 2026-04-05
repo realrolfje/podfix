@@ -229,6 +229,12 @@ Sync only one show:
 ./podfix.sh sync --config config.toml --podcast dai-carter
 ```
 
+Sync and delete stale published files that are no longer referenced by state:
+
+```bash
+./podfix.sh sync --config config.toml --clean-stale
+```
+
 Force a clean rebuild:
 
 ```bash
@@ -258,6 +264,8 @@ Refresh one show only:
 `refresh` re-fetches the selected feed window, refreshes show and episode artwork for already-synced episodes, rewrites the public feed and show pages, refreshes local enclosure URLs from the current config, and skips media download/transcode work.
 
 `rebuild-images` still works as a deprecated alias for `refresh`.
+
+`sync`, `refresh`, `rebuild`, and `rebuild-images` all accept `--clean-stale`. Without it, Podfix only logs warnings for stale published files. With it, Podfix deletes stale published files and prunes empty directories in the affected podcast tree.
 
 Serve the generated feed locally:
 
