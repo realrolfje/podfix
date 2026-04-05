@@ -3,9 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 from podcast_proxy.config import FFMpegConfig, HTTPConfig, PodcastConfig
 from podcast_proxy.feed import Episode
+from podcast_proxy.rss import write_feed
 from podcast_proxy.service import (
     _ensure_public_files_for_records,
     _next_enclosure_url_version,
@@ -14,6 +16,7 @@ from podcast_proxy.service import (
     _report_stale_public_files,
     _rebuild_episode_artwork,
 )
+from podcast_proxy.state import StateStore
 
 
 class RebuildImagesTests(unittest.TestCase):
@@ -420,6 +423,77 @@ class RebuildImagesTests(unittest.TestCase):
         self.assertIn("deleted stale published file for losse-eindjes", captured.output[0])
         self.assertIn("orphan.mp3", captured.output[0])
         self.assertFalse(orphan_path.exists())
+
+    def test_guid_filename_migration_persists_state_and_feed(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=False,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            old_path = config.public_episodes_dir / "old-name.mp3"
+            old_path.parent.mkdir(parents=True, exist_ok=True)
+            old_path.write_bytes(b"audio")
+            state = {
+                "feed": {
+                    "metadata": {
+                        "title": "Losse eindjes",
+                        "description": "desc",
+                        "resolved_mode": "news",
+                    }
+                },
+                "episodes": {
+                    "WO_KN_20309964": {
+                        "guid": "WO_KN_20309964",
+                        "title": "Episode",
+                        "description": "desc",
+                        "published": "Thu, 11 Dec 2025 15:47:00 +0100",
+                        "processed_file": "old-name.mp3",
+                        "public_media_file": "media-change-me/losse-eindjes/episodes/old-name.mp3",
+                        "enclosure_url": "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/old-name.mp3",
+                        "enclosure_length": 5,
+                        "enclosure_type": "audio/mpeg",
+                    }
+                },
+            }
+
+            changed = _prepare_episode_state_for_render(config, state["episodes"], 0)
+            self.assertTrue(changed)
+            records = [
+                _normalize_record_urls(config, record, 0)
+                for record in state["episodes"].values()
+            ]
+            write_feed(config, state["feed"]["metadata"], records)
+            StateStore(config.state_file).save(state)
+            reloaded = StateStore(config.state_file).load()
+
+            migrated = reloaded["episodes"]["WO_KN_20309964"]
+            self.assertEqual(migrated["processed_file"], "WO_KN_20309964.mp3")
+            self.assertEqual(
+                migrated["public_media_file"],
+                "media-change-me/losse-eindjes/episodes/WO_KN_20309964.mp3",
+            )
+            self.assertFalse(old_path.exists())
+            self.assertTrue((config.public_episodes_dir / "WO_KN_20309964.mp3").exists())
+
+            root = ET.fromstring(config.public_feed.read_text(encoding="utf-8"))
+            enclosure = root.find("./channel/item/enclosure")
+            self.assertIsNotNone(enclosure)
+            self.assertEqual(
+                enclosure.attrib["url"],
+                "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/WO_KN_20309964.mp3",
+            )
 
 
 if __name__ == "__main__":
