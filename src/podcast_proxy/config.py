@@ -131,6 +131,12 @@ class PodcastConfig:
             return f"{self.base_url}/{token}"
         return f"{self.base_url}/{token}/{self.slug}"
 
+    def public_media_relative_path(self, processed_name: str) -> str:
+        token = self.media_path_token.strip("/")
+        if self.legacy_root:
+            return f"{token}/episodes/{processed_name}"
+        return f"{token}/{self.slug}/episodes/{processed_name}"
+
     @property
     def feed_url(self) -> str:
         return f"{self.public_base_url}/feed.xml"

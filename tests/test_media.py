@@ -152,7 +152,11 @@ class MediaSafetyTests(unittest.TestCase):
         legacy_path.parent.mkdir(parents=True, exist_ok=True)
         legacy_path.write_bytes(b"legacy-public")
 
-        result = ensure_public_episode_path(self.config, "episode-1.mp3")
+        result = ensure_public_episode_path(
+            self.config,
+            "episode-1.mp3",
+            self.config.public_media_relative_path("episode-1.mp3"),
+        )
 
         self.assertEqual(result, self.config.public_episodes_dir / "episode-1.mp3")
         self.assertEqual(result.read_bytes(), b"legacy-public")

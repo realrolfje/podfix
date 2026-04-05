@@ -156,8 +156,12 @@ def _download_suffix(enclosure_url: str) -> str:
 def ensure_public_episode_path(
     config: PodcastConfig,
     processed_name: str,
+    published_relative_path: str | None = None,
 ) -> Path | None:
-    public_path = config.public_episodes_dir / processed_name
+    if published_relative_path:
+        public_path = config.public_root_dir / published_relative_path
+    else:
+        public_path = config.public_episodes_dir / processed_name
     if public_path.exists():
         return public_path
     legacy_path = config.legacy_public_episodes_dir / processed_name

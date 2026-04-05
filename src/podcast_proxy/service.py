@@ -5,6 +5,7 @@ from email.utils import parsedate_to_datetime
 import logging
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from .artwork import process_artwork
 from .config import AppConfig, PodcastConfig
@@ -69,17 +70,31 @@ def _selected_podcasts(
 
 
 def _summary_from_state(config: PodcastConfig) -> dict[str, Any] | None:
-    state = StateStore(config.state_file).load()
+    state_store = StateStore(config.state_file)
+    state = state_store.load()
     enclosure_url_version = _state_enclosure_url_version(state)
     metadata = _normalize_metadata_urls(config, state.get("feed", {}).get("metadata", {}))
     if not metadata:
         return None
+    episode_state = dict(state.get("episodes", {}))
+    state_changed = _prepare_episode_state_for_render(
+        config,
+        episode_state,
+        enclosure_url_version,
+    )
+    metadata_changed = metadata != state.get("feed", {}).get("metadata", {})
+    if state_changed or metadata_changed:
+        next_state = dict(state)
+        next_state["episodes"] = episode_state
+        next_feed = dict(next_state.get("feed", {}))
+        next_feed["metadata"] = metadata
+        next_state["feed"] = next_feed
+        state_store.save(next_state)
     episode_records = _renderable_records(
-        state.get("episodes", {}).values(),
+        episode_state.values(),
         _resolved_mode(metadata),
         config.max_episodes,
     )
-    _ensure_public_files_for_records(config, episode_records)
     episode_records = [
         _normalize_record_urls(config, record, enclosure_url_version)
         for record in episode_records
@@ -113,12 +128,26 @@ def _sync_podcast(
             metadata = _normalize_metadata_urls(
                 config, state.get("feed", {}).get("metadata", {})
             )
+            episode_state = dict(state.get("episodes", {}))
+            state_changed = _prepare_episode_state_for_render(
+                config,
+                episode_state,
+                enclosure_url_version,
+            )
+            metadata_changed = metadata != state.get("feed", {}).get("metadata", {})
+            if state_changed or metadata_changed:
+                next_state = dict(state)
+                next_state["episodes"] = episode_state
+                next_feed = dict(next_state.get("feed", {}))
+                next_feed["metadata"] = metadata
+                next_state["feed"] = next_feed
+                next_state["enclosure_url_version"] = enclosure_url_version
+                state_store.save(next_state)
             episode_records = _renderable_records(
-                state.get("episodes", {}).values(),
+                episode_state.values(),
                 _resolved_mode(metadata),
                 config.max_episodes,
             )
-            _ensure_public_files_for_records(config, episode_records)
             episode_records = [
                 _normalize_record_urls(config, record, enclosure_url_version)
                 for record in episode_records
@@ -186,9 +215,10 @@ def _sync_podcast(
                 "signature": signature,
                 "source_signature": _source_signature(episode),
                 "processed_file": public_name,
+                "public_media_file": config.public_media_relative_path(public_name),
                 "enclosure_url": _local_episode_url(
                     config,
-                    public_name,
+                    config.public_media_relative_path(public_name),
                     enclosure_url_version,
                 ),
                 "enclosure_length": public_path.stat().st_size,
@@ -218,6 +248,11 @@ def _sync_podcast(
             snapshot.resolved_mode,
             config.max_episodes,
         )
+    _prepare_episode_state_for_render(
+        config,
+        next_episode_state,
+        enclosure_url_version,
+    )
     _ensure_public_files_for_records(config, ordered_records)
     ordered_records = [
         _normalize_record_urls(config, record, enclosure_url_version)
@@ -298,9 +333,14 @@ def _rebuild_episode_artwork(
         }
         processed_name = str(previous.get("processed_file") or "").strip()
         if processed_name:
+            rebuilt_record["public_media_file"] = _public_media_relative_path(
+                config,
+                previous.get("public_media_file"),
+                processed_name,
+            )
             rebuilt_record["enclosure_url"] = _local_episode_url(
                 config,
-                processed_name,
+                rebuilt_record["public_media_file"],
                 enclosure_url_version,
             )
         next_episode_state[episode.guid] = rebuilt_record
@@ -346,10 +386,18 @@ def _normalize_record_urls(
         normalized["image_url"] = _normalize_local_artwork_url(
             config, normalized["image_url"]
         )
-    if normalized.get("enclosure_url"):
+    published_relative_path = _public_media_relative_path(
+        config,
+        normalized.get("public_media_file"),
+        normalized.get("processed_file"),
+    )
+    if published_relative_path:
+        normalized["public_media_file"] = published_relative_path
+    if normalized.get("enclosure_url") or published_relative_path:
         normalized["enclosure_url"] = _normalize_local_episode_url(
             config,
-            normalized["enclosure_url"],
+            normalized.get("enclosure_url", ""),
+            published_relative_path,
             normalized.get("processed_file"),
             enclosure_url_version,
         )
@@ -366,14 +414,37 @@ def _normalize_local_artwork_url(config: PodcastConfig, url: str) -> str:
 def _normalize_local_episode_url(
     config: PodcastConfig,
     url: str,
+    public_media_file: object,
     processed_file: object,
     enclosure_url_version: int,
 ) -> str:
+    published_relative_path = _public_media_relative_path(
+        config,
+        public_media_file,
+        processed_file,
+    )
+    if published_relative_path:
+        return _local_episode_url(
+            config,
+            published_relative_path,
+            enclosure_url_version,
+        )
     processed_name = str(processed_file or "").strip()
     if processed_name:
-        return _local_episode_url(config, processed_name, enclosure_url_version)
+        return _local_episode_url(
+            config,
+            config.public_media_relative_path(processed_name),
+            enclosure_url_version,
+        )
     legacy_prefix = f"{config.base_url}/episodes/"
     if str(url).startswith(legacy_prefix):
+        processed_name = Path(urlsplit(str(url)).path).name
+        if processed_name:
+            return _local_episode_url(
+                config,
+                config.public_media_relative_path(processed_name),
+                enclosure_url_version,
+            )
         return _with_enclosure_url_version(
             f"{config.public_base_url}/episodes/{str(url)[len(legacy_prefix):]}",
             enclosure_url_version,
@@ -383,13 +454,27 @@ def _normalize_local_episode_url(
 
 def _local_episode_url(
     config: PodcastConfig,
-    processed_name: str,
+    public_media_file: str,
     enclosure_url_version: int,
 ) -> str:
     return _with_enclosure_url_version(
-        f"{config.public_media_base_url}/episodes/{processed_name}",
+        f"{config.base_url}/{public_media_file.strip('/')}",
         enclosure_url_version,
     )
+
+
+def _public_media_relative_path(
+    config: PodcastConfig,
+    public_media_file: object,
+    processed_file: object,
+) -> str:
+    stored_path = str(public_media_file or "").strip().strip("/")
+    if stored_path:
+        return stored_path
+    processed_name = str(processed_file or "").strip()
+    if processed_name:
+        return config.public_media_relative_path(processed_name)
+    return ""
 
 
 def _with_enclosure_url_version(url: str, enclosure_url_version: int) -> str:
@@ -416,10 +501,23 @@ def _next_enclosure_url_version(state: dict[str, Any], *, rebuild: bool) -> int:
 
 
 def _has_public_copy(config: PodcastConfig, record: dict[str, Any]) -> bool:
-    processed_name = record.get("processed_file")
+    processed_name = str(record.get("processed_file") or "").strip()
     if not processed_name:
         return False
-    return ensure_public_episode_path(config, str(processed_name)) is not None
+    public_media_file = _public_media_relative_path(
+        config,
+        record.get("public_media_file"),
+        processed_name,
+    )
+    public_path = ensure_public_episode_path(
+        config,
+        processed_name,
+        public_media_file or None,
+    )
+    if public_path is None:
+        return False
+    record["public_media_file"] = public_media_file
+    return True
 
 
 def _ensure_public_files_for_records(
@@ -429,7 +527,65 @@ def _ensure_public_files_for_records(
     for record in records:
         processed_name = str(record.get("processed_file") or "").strip()
         if processed_name:
-            ensure_public_episode_path(config, processed_name)
+            public_media_file = _public_media_relative_path(
+                config,
+                record.get("public_media_file"),
+                processed_name,
+            )
+            public_path = ensure_public_episode_path(
+                config,
+                processed_name,
+                public_media_file or None,
+            )
+            if public_path is not None:
+                record["public_media_file"] = public_media_file
+
+
+def _prepare_episode_state_for_render(
+    config: PodcastConfig,
+    episode_state: dict[str, dict[str, Any]],
+    enclosure_url_version: int,
+) -> bool:
+    changed = False
+    for record in episode_state.values():
+        if record.get("image_url"):
+            normalized_image_url = _normalize_local_artwork_url(
+                config,
+                str(record["image_url"]),
+            )
+            if normalized_image_url != record.get("image_url"):
+                record["image_url"] = normalized_image_url
+                changed = True
+
+        processed_name = str(record.get("processed_file") or "").strip()
+        if not processed_name:
+            continue
+
+        public_media_file = _public_media_relative_path(
+            config,
+            record.get("public_media_file"),
+            processed_name,
+        )
+        if record.get("public_media_file") != public_media_file:
+            record["public_media_file"] = public_media_file
+            changed = True
+
+        ensure_public_episode_path(
+            config,
+            processed_name,
+            public_media_file or None,
+        )
+        normalized_enclosure_url = _normalize_local_episode_url(
+            config,
+            str(record.get("enclosure_url") or ""),
+            public_media_file,
+            processed_name,
+            enclosure_url_version,
+        )
+        if normalized_enclosure_url != record.get("enclosure_url"):
+            record["enclosure_url"] = normalized_enclosure_url
+            changed = True
+    return changed
 
 
 def _episode_signature(episode: Episode) -> str:
