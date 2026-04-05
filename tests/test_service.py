@@ -7,6 +7,7 @@ import unittest
 from podcast_proxy.config import FFMpegConfig, HTTPConfig, PodcastConfig
 from podcast_proxy.feed import Episode
 from podcast_proxy.service import (
+    _ensure_public_files_for_records,
     _next_enclosure_url_version,
     _normalize_record_urls,
     _rebuild_episode_artwork,
@@ -165,6 +166,39 @@ class RebuildImagesTests(unittest.TestCase):
             _next_enclosure_url_version({"enclosure_url_version": 4}, rebuild=True),
             5,
         )
+
+    def test_ensure_public_files_for_records_moves_legacy_episode(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.rolfje.com/private/podfix/data/public",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=False,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            legacy_path = config.legacy_public_episodes_dir / "episode.mp3"
+            legacy_path.parent.mkdir(parents=True, exist_ok=True)
+            legacy_path.write_bytes(b"legacy-public")
+
+            _ensure_public_files_for_records(
+                config,
+                [{"processed_file": "episode.mp3"}],
+            )
+
+            self.assertEqual(
+                (config.public_episodes_dir / "episode.mp3").read_bytes(),
+                b"legacy-public",
+            )
+            self.assertFalse(legacy_path.exists())
 
 
 if __name__ == "__main__":

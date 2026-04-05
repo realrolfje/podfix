@@ -79,6 +79,7 @@ def _summary_from_state(config: PodcastConfig) -> dict[str, Any] | None:
         _resolved_mode(metadata),
         config.max_episodes,
     )
+    _ensure_public_files_for_records(config, episode_records)
     episode_records = [
         _normalize_record_urls(config, record, enclosure_url_version)
         for record in episode_records
@@ -117,6 +118,7 @@ def _sync_podcast(
                 _resolved_mode(metadata),
                 config.max_episodes,
             )
+            _ensure_public_files_for_records(config, episode_records)
             episode_records = [
                 _normalize_record_urls(config, record, enclosure_url_version)
                 for record in episode_records
@@ -216,6 +218,7 @@ def _sync_podcast(
             snapshot.resolved_mode,
             config.max_episodes,
         )
+    _ensure_public_files_for_records(config, ordered_records)
     ordered_records = [
         _normalize_record_urls(config, record, enclosure_url_version)
         for record in ordered_records
@@ -417,6 +420,16 @@ def _has_public_copy(config: PodcastConfig, record: dict[str, Any]) -> bool:
     if not processed_name:
         return False
     return ensure_public_episode_path(config, str(processed_name)) is not None
+
+
+def _ensure_public_files_for_records(
+    config: PodcastConfig,
+    records: list[dict[str, Any]],
+) -> None:
+    for record in records:
+        processed_name = str(record.get("processed_file") or "").strip()
+        if processed_name:
+            ensure_public_episode_path(config, processed_name)
 
 
 def _episode_signature(episode: Episode) -> str:
