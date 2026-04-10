@@ -163,6 +163,12 @@ slug = "echt-gebeurd"
 upstream_feed_url = "https://rss.art19.com/echt-gebeurd"
 podcast_mode = "news"
 
+[[podcasts]]
+slug = "cocainekoorts"
+upstream_feed_url = "https://rss.art19.com/cocainekoorts"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
 [http]
 user_agent = "podcast-proxy/0.1"
 timeout_seconds = 30
