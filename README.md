@@ -229,6 +229,8 @@ Process every missing episode in the selected feed window for one podcast:
 ./podfix.sh sync --config config.toml --podcast my-series --all-episodes
 ```
 
+For a full catch-up run on a serialized archive, combine `--all-episodes` with `podcast_mode = "story"` and `max_episodes = "unlimited"` for that show.
+
 Sync only one show:
 
 ```bash
@@ -387,6 +389,7 @@ Normalization notes:
 
 - `sync` processes at most one episode per podcast on each run.
 - `sync --all-episodes` processes every missing episode in the selected feed window for the selected podcast(s) in one run.
+- For a complete catch-up, `--all-episodes` still only works within the current feed window, so set `max_episodes = "unlimited"` when you need the full archive.
 - For `news` podcasts that one episode is the newest upstream item.
 - For `story` podcasts that one episode is the oldest not-yet-synced item inside the configured episode window.
 - For `news`, the episode window is the newest `max_episodes` items.
