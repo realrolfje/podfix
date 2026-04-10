@@ -6,4 +6,4 @@ PROJECT_DIR="$SCRIPT_DIR"
 CONFIG_FILE="${CONFIG_FILE:-$PROJECT_DIR/config.server.toml}"
 
 cd "$PROJECT_DIR"
-exec "$PROJECT_DIR/podfix.sh" sync --config "$CONFIG_FILE"
+exec "$PROJECT_DIR/podfix.sh" sync --config "$CONFIG_FILE" --clean-stale

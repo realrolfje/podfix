@@ -175,6 +175,11 @@ upstream_feed_url = "https://omny.fm/shows/weiteveen/playlists/dezaakxl.rss"
 podcast_mode = "story"
 max_episodes = "unlimited"
 
+[[podcasts]]
+slug = "argos-actueel"
+upstream_feed_url = "https://podcast.npo.nl/feed/argos.xml"
+podcast_mode = "news"
+
 [http]
 user_agent = "podcast-proxy/0.1"
 timeout_seconds = 30
