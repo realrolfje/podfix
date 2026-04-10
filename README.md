@@ -205,6 +205,7 @@ Mode behavior:
 - `max_episodes` with `news`: keep the newest `N` synced episodes and prune anything older
 - `max_episodes` with `story`: work only within the oldest `N` upstream episodes; newer episodes are ignored until you raise the limit or use `"unlimited"`
 - `max_episodes = "unlimited"`: keep all synced episodes in the generated feed and show page, which is useful for documentaries and serialized archives
+- For Apple Podcasts, Podfix preserves upstream `itunes:episode`, `itunes:season`, and `itunes:episodeType` item metadata and emits `itunes:type = serial` for `story` shows when applicable. That gives Apple the strongest RSS-level signal for oldest-to-newest series playback, although the per-subscription playback preference in the app is still user-controlled.
 
 Audio tuning:
 

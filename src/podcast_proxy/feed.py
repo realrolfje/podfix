@@ -29,6 +29,10 @@ class Episode:
     original_link: str | None
     image_url: str | None
     explicit: str
+    episode_number: int | None = None
+    season_number: int | None = None
+    episode_type: str | None = None
+    duration_seconds: int | None = None
 
 
 @dataclass(slots=True)
@@ -162,6 +166,10 @@ def _entry_to_episode(entry: Any) -> Episode:
         original_link=entry.get("link"),
         image_url=_find_image(entry),
         explicit=_normalize_explicit(_find_explicit(entry)),
+        episode_number=_parse_optional_int(entry.get("itunes_episode")),
+        season_number=_parse_optional_int(entry.get("itunes_season")),
+        episode_type=_normalize_episode_type(entry.get("itunes_episodetype")),
+        duration_seconds=_parse_duration_seconds(entry.get("itunes_duration")),
     )
 
 
@@ -200,6 +208,47 @@ def _normalize_explicit(value: object) -> str:
     if normalized in {"no", "false", "clean"}:
         return "false"
     return "false"
+
+
+def _parse_optional_int(value: object) -> int | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _normalize_episode_type(value: object) -> str | None:
+    normalized = str(value or "").strip().lower()
+    if normalized in {"full", "trailer", "bonus"}:
+        return normalized
+    return None
+
+
+def _parse_duration_seconds(value: object) -> int | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    parts = text.split(":")
+    try:
+        numbers = [int(part.strip()) for part in parts]
+    except ValueError:
+        return None
+    if any(number < 0 for number in numbers):
+        return None
+    if len(numbers) == 1:
+        return numbers[0]
+    if len(numbers) == 2:
+        minutes, seconds = numbers
+        return (minutes * 60) + seconds
+    if len(numbers) == 3:
+        hours, minutes, seconds = numbers
+        return (hours * 3600) + (minutes * 60) + seconds
+    return None
 
 
 def _find_image(feed: Any) -> str | None:

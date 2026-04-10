@@ -140,7 +140,19 @@ def _episode_card(
     published = escape(raw_published)
     enclosure_url = escape(_relative_episode_url(str(record.get("enclosure_url", "#"))))
     image_url = str(record.get("image_url") or fallback_image_url or "")
-    search_text = escape(" ".join(part for part in (raw_title, raw_published) if part).casefold())
+    episode_meta = _episode_meta_label(record)
+    duration_label = _duration_label(record.get("duration_seconds"))
+    meta_parts: list[str] = []
+    if episode_meta:
+        meta_parts.append(f'<span class="meta-chip">{escape(episode_meta)}</span>')
+    if published:
+        meta_parts.append(f'<span class="meta-date">{published}</span>')
+    meta_markup = " ".join(meta_parts)
+    search_text = escape(
+        " ".join(
+            part for part in (raw_title, raw_published, episode_meta or "", duration_label or "") if part
+        ).casefold()
+    )
     image_markup = ""
     if image_url:
         image_markup = (
@@ -151,11 +163,11 @@ def _episode_card(
         f"{image_markup}"
         "<div class=\"episode-copy\">"
         f"<h3 class=\"episode-title\">{title}</h3>"
-        f"<div class=\"meta\">{published}</div>"
+        f"<div class=\"meta\">{meta_markup}</div>"
         "</div>"
         f"<a class=\"audio play-button\" href=\"{enclosure_url}\" aria-label=\"Play processed MP3\">"
         "<span class=\"play-icon\" aria-hidden=\"true\">&#9654;</span>"
-        "<span>Play</span>"
+        f"<span>{escape(_play_button_label(duration_label))}</span>"
         "</a>"
         "</article>"
     )
@@ -202,6 +214,47 @@ def _plain_text(value: Any) -> str:
     text = re.sub(r"<[^>]+>", " ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+
+def _episode_meta_label(record: dict[str, Any]) -> str | None:
+    season = _optional_int(record.get("season_number"))
+    episode = _optional_int(record.get("episode_number"))
+    if season is not None and episode is not None:
+        return f"S{season} E{episode}"
+    if episode is not None:
+        return f"Episode {episode}"
+    if season is not None:
+        return f"Season {season}"
+    return None
+
+
+def _optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
+
+
+def _duration_label(value: Any) -> str | None:
+    seconds = _optional_int(value)
+    if seconds is None or seconds < 0:
+        return None
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes}:{seconds:02d}"
+
+
+def _play_button_label(duration_label: str | None) -> str:
+    if duration_label:
+        return f"Play {duration_label}"
+    return "Play"
 
 
 def _resolved_mode_label(data: dict[str, Any]) -> str:
@@ -444,6 +497,27 @@ def _shared_css() -> str:
       justify-content: center;
       font-size: 0.9rem;
       line-height: 1;
+    }
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+      align-items: center;
+    }
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(12, 99, 255, 0.1);
+      color: #0b4cc7;
+      font-size: 0.83rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .meta-date {
+      white-space: nowrap;
     }
     .rss-icon {
       display: inline-flex;

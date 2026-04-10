@@ -230,11 +230,12 @@ def _sync_podcast(
         if previous and _record_matches_episode(previous, episode) and not rebuild:
             if _has_public_copy(config, previous):
                 LOGGER.info("skip existing episode for %s: %s", config.slug, episode.title)
-                next_episode_state[episode.guid] = {
-                    **previous,
-                    "signature": signature,
-                    "source_signature": _source_signature(episode),
-                }
+                next_episode_state[episode.guid] = _merge_episode_metadata(
+                    previous,
+                    episode,
+                    signature=signature,
+                    source_signature=_source_signature(episode),
+                )
                 continue
             LOGGER.warning(
                 "public episode missing for %s, rebuilding: %s",
@@ -392,9 +393,13 @@ def _rebuild_episode_artwork(
         rebuilt_record = {
             **previous,
             "image_url": _process_episode_artwork(session, config, episode.image_url),
-            "signature": _episode_signature(episode),
-            "source_signature": _source_signature(episode),
         }
+        rebuilt_record = _merge_episode_metadata(
+            rebuilt_record,
+            episode,
+            signature=_episode_signature(episode),
+            source_signature=_source_signature(episode),
+        )
         desired_processed_name = _desired_processed_name(config, {"guid": episode.guid})
         processed_name = desired_processed_name or str(previous.get("processed_file") or "").strip()
         if processed_name:
@@ -424,6 +429,16 @@ def _refresh_missing_episode_artwork(
         previous = episode_state.get(episode.guid)
         if not previous or not _record_matches_episode(previous, episode):
             continue
+        merged = _merge_episode_metadata(
+            previous,
+            episode,
+            signature=_episode_signature(episode),
+            source_signature=_source_signature(episode),
+        )
+        if merged != previous:
+            episode_state[episode.guid] = merged
+            previous = merged
+            changed = True
         image_url = previous.get("image_url")
         if _has_public_artwork_copy(config, image_url):
             continue
@@ -437,10 +452,29 @@ def _refresh_missing_episode_artwork(
             config,
             episode.image_url,
         )
-        previous["signature"] = _episode_signature(episode)
-        previous["source_signature"] = _source_signature(episode)
         changed = True
     return changed
+
+
+def _merge_episode_metadata(
+    record: dict[str, Any],
+    episode: Episode,
+    *,
+    signature: str,
+    source_signature: str,
+) -> dict[str, Any]:
+    merged = {
+        **record,
+        "signature": signature,
+        "source_signature": source_signature,
+    }
+    for field in ("episode_number", "season_number", "episode_type", "duration_seconds"):
+        value = getattr(episode, field)
+        if value is None:
+            merged.pop(field, None)
+        else:
+            merged[field] = value
+    return merged
 
 
 def _podcast_summary(

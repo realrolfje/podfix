@@ -12,5 +12,11 @@ slug = "alledaagse-vragen"
 upstream_feed_url = "https://podcast.npo.nl/feed/alicante.xml"
 podcast_mode = "news"
 
+[[podcasts]]
+slug = "de-brand-in-het-landhuis"
+upstream_feed_url = "https://podcast.npo.nl/feed/de-brand-in-het-landhuis.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
 [ffmpeg]
 binary = "/opt/homebrew/bin/ffmpeg"

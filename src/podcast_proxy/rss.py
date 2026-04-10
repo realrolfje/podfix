@@ -51,6 +51,9 @@ def write_feed(
         if record.get("author"):
             _text(item, f"{{{ITUNES_NS}}}author", record["author"])
         _text(item, f"{{{ITUNES_NS}}}explicit", record.get("explicit", "false"))
+        _text(item, f"{{{ITUNES_NS}}}episode", record.get("episode_number"))
+        _text(item, f"{{{ITUNES_NS}}}season", record.get("season_number"))
+        _text(item, f"{{{ITUNES_NS}}}episodeType", record.get("episode_type"))
         if record.get("original_link"):
             _text(item, "link", record["original_link"])
         if record.get("image_url"):

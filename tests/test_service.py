@@ -619,6 +619,111 @@ class RebuildImagesTests(unittest.TestCase):
                 "https://upstream.example.com/art.jpg",
             )
 
+    def test_sync_backfills_episode_metadata_for_existing_episode_without_reprocessing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="losse-eindjes",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=False,
+                badge_artwork=False,
+                max_episodes=5,
+                podcast_mode="news",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+            public_episode = config.public_episodes_dir / "guid-1.mp3"
+            public_episode.parent.mkdir(parents=True, exist_ok=True)
+            public_episode.write_bytes(b"audio")
+
+            episode = Episode(
+                guid="guid-1",
+                title="Available episode",
+                description="desc",
+                published="Thu, 11 Dec 2025 15:47:00 +0100",
+                enclosure_url="https://upstream.example.com/audio.mp3",
+                enclosure_type="audio/mpeg",
+                source_kind="audio",
+                slug="episode",
+                author=None,
+                original_link=None,
+                image_url=None,
+                explicit="false",
+                episode_number=7,
+                season_number=2,
+                episode_type="full",
+                duration_seconds=3723,
+            )
+            state = {
+                "feed": {
+                    "metadata": {
+                        "title": "Losse eindjes",
+                        "description": "desc",
+                        "resolved_mode": "news",
+                    }
+                },
+                "episodes": {
+                    "guid-1": {
+                        "guid": "guid-1",
+                        "title": "Available episode",
+                        "description": "desc",
+                        "published": "Thu, 11 Dec 2025 15:47:00 +0100",
+                        "processed_file": "guid-1.mp3",
+                        "public_media_file": "media-change-me/losse-eindjes/episodes/guid-1.mp3",
+                        "enclosure_url": "https://static.example.com/private/podfix/data/published/media-change-me/losse-eindjes/episodes/guid-1.mp3",
+                        "enclosure_length": 5,
+                        "enclosure_type": "audio/mpeg",
+                        "signature": "guid-1|audio/mpeg|Thu, 11 Dec 2025 15:47:00 +0100|Available episode",
+                        "source_signature": "https://upstream.example.com/audio.mp3|audio/mpeg|Thu, 11 Dec 2025 15:47:00 +0100|Available episode",
+                    }
+                },
+            }
+            StateStore(config.state_file).save(state)
+
+            with (
+                patch("podcast_proxy.service.make_session", return_value=object()),
+                patch(
+                    "podcast_proxy.service.fetch_feed",
+                    return_value=FeedSnapshot(
+                        metadata={
+                            "title": "Losse eindjes",
+                            "description": "desc",
+                            "resolved_mode": "news",
+                        },
+                        episodes=[episode],
+                        etag="etag-1",
+                        last_modified="last-modified-1",
+                        resolved_mode="news",
+                    ),
+                ),
+                patch("podcast_proxy.service.download_media") as download_media,
+                patch("podcast_proxy.service.transcode_media_with_options") as transcode,
+                patch("podcast_proxy.service.write_feed"),
+                patch("podcast_proxy.service.write_podcast_index"),
+                patch("podcast_proxy.service.write_library_index"),
+            ):
+                summary = _sync_podcast(
+                    config,
+                    rebuild=False,
+                    rebuild_images=False,
+                    clean_stale=False,
+                    process_all_episodes=False,
+                )
+
+            saved_state = StateStore(config.state_file).load()
+            self.assertEqual(summary["episode_count"], 1)
+            self.assertEqual(saved_state["episodes"]["guid-1"]["episode_number"], 7)
+            self.assertEqual(saved_state["episodes"]["guid-1"]["season_number"], 2)
+            self.assertEqual(saved_state["episodes"]["guid-1"]["episode_type"], "full")
+            self.assertEqual(saved_state["episodes"]["guid-1"]["duration_seconds"], 3723)
+            download_media.assert_not_called()
+            transcode.assert_not_called()
+
     def test_report_stale_public_files_logs_orphaned_mp3(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             config = PodcastConfig(
