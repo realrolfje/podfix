@@ -13,3 +13,7 @@ stale_threshold_days = 7
 [http]
 basic_auth_username = "podfix"
 basic_auth_password = "change-me"
+# Sent as the HTTP User-Agent header on outbound feed, media, and
+# artwork requests. The +URL is a contact pointer for podcast hosts
+# who see your traffic — point it at any page describing your setup.
+user_agent = "podfix/0.1 (+https://www.rolfje.com/2026/04/01/the-podcast-problem-fixed/)"

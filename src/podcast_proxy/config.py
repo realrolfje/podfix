@@ -14,7 +14,7 @@ DEFAULT_MEDIA_PATH_TOKEN = "media-change-me"
 
 @dataclass(slots=True)
 class HTTPConfig:
-    user_agent: str = "podcast-proxy/0.1"
+    user_agent: str = "podfix/0.1 (+https://www.rolfje.com/2026/04/01/the-podcast-problem-fixed/)"
     timeout_seconds: float = 30.0
     retries: int = 2
     basic_auth_username: str = "podfix"
