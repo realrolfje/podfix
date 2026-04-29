@@ -44,6 +44,7 @@ def write_podcast_index(
 </head>
 <body>
   <main>
+    <p class="eyebrow"><a href="{escape(home_href)}">&larr; All shows</a></p>
     <section class="hero">
       {mode_badge}
       <div>{image_markup}</div>
