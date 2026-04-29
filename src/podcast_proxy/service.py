@@ -56,12 +56,10 @@ def sync(
     for podcast in config.podcasts:
         processed_summary = summary_by_slug.get(podcast.slug)
         if processed_summary is not None:
-            processed_summary["processed"] = True
             summaries.append(processed_summary)
             continue
         state_summary = _summary_from_state(podcast, clean_stale=clean_stale)
         if state_summary:
-            state_summary["processed"] = False
             summaries.append(state_summary)
     summaries.sort(key=lambda item: str(item.get("title", "")).casefold())
     write_library_index(config, summaries)
@@ -144,6 +142,7 @@ def _sync_podcast(
     state_store = StateStore(config.state_file)
     state = state_store.load()
     enclosure_url_version = _next_enclosure_url_version(state, rebuild=rebuild)
+    processed_episodes = 0
 
     session = make_session(config)
     snapshot = fetch_feed(session, config, state)
@@ -198,7 +197,9 @@ def _sync_podcast(
             )
             write_feed(config, metadata, episode_records)
             write_podcast_index(config, metadata, episode_records)
-            return _podcast_summary(config, metadata, episode_records)
+            summary = _podcast_summary(config, metadata, episode_records)
+            summary["processed_episodes"] = processed_episodes
+            return summary
 
     metadata = _process_metadata_artwork(session, config, dict(snapshot.metadata))
 
@@ -278,6 +279,7 @@ def _sync_podcast(
                 "enclosure_length": public_path.stat().st_size,
                 "enclosure_type": "audio/mpeg",
             }
+            processed_episodes += 1
         except Exception as exc:  # noqa: BLE001
             LOGGER.error("episode failed for %s: %s (%s)", config.slug, episode.title, exc)
             if previous:
@@ -347,7 +349,9 @@ def _sync_podcast(
         "episodes": next_episode_state,
     }
     state_store.save(next_state)
-    return _podcast_summary(config, metadata, ordered_records)
+    summary = _podcast_summary(config, metadata, ordered_records)
+    summary["processed_episodes"] = processed_episodes
+    return summary
 
 
 def _process_metadata_artwork(
@@ -503,6 +507,7 @@ def _podcast_summary(
         "episode_count": len(episode_records),
         "latest_published": _latest_published_at(episode_records),
         "stale_threshold_days": config.stale_threshold_days,
+        "processed_episodes": 0,
     }
 
 

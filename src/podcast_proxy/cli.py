@@ -357,10 +357,14 @@ def _public_media_relative_path(
 def _print_run_summary(result: SyncResult) -> None:
     summaries = result.summaries
     now = datetime.now(timezone.utc)
-    processed_count = sum(1 for item in summaries if item.get("processed"))
+    total_processed = sum(int(item.get("processed_episodes") or 0) for item in summaries)
+    podcasts_with_work = sum(
+        1 for item in summaries if int(item.get("processed_episodes") or 0) > 0
+    )
     total = len(summaries)
     print(
-        f"Processed {processed_count} of {total} podcast{'s' if total != 1 else ''}."
+        f"Downloaded/updated {total_processed} episode{'s' if total_processed != 1 else ''} "
+        f"across {podcasts_with_work} of {total} podcast{'s' if total != 1 else ''}."
     )
     if not summaries:
         return
@@ -368,7 +372,8 @@ def _print_run_summary(result: SyncResult) -> None:
     stale: list[tuple[str, str, int, int]] = []
     for item in summaries:
         title = str(item.get("title") or item.get("slug") or "<unknown>")
-        marker = "*" if item.get("processed") else " "
+        processed = int(item.get("processed_episodes") or 0)
+        marker = "*" if processed > 0 else " "
         latest = item.get("latest_published")
         threshold_days = int(
             item.get("stale_threshold_days") or DEFAULT_STALE_THRESHOLD_DAYS
@@ -384,7 +389,7 @@ def _print_run_summary(result: SyncResult) -> None:
         rows.append((marker, title, info))
     title_width = max(len(row[1]) for row in rows)
     print()
-    print("Latest episode per podcast (* = processed in this run):")
+    print("Latest episode per podcast (* = episodes downloaded/updated this run):")
     for marker, title, info in rows:
         print(f"  {marker} {title.ljust(title_width)}  {info}")
     if stale:
