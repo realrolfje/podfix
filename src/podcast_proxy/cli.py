@@ -369,37 +369,34 @@ def _print_run_summary(result: SyncResult) -> None:
     if not summaries:
         return
     rows: list[tuple[str, str, str]] = []
-    stale: list[tuple[str, str, int, int]] = []
     for item in summaries:
         title = str(item.get("title") or item.get("slug") or "<unknown>")
         processed = int(item.get("processed_episodes") or 0)
-        marker = "*" if processed > 0 else " "
         latest = item.get("latest_published")
         threshold_days = int(
             item.get("stale_threshold_days") or DEFAULT_STALE_THRESHOLD_DAYS
         )
+        is_stale = False
         if isinstance(latest, datetime):
             age_days = (now - latest).days
             date_str = latest.strftime("%Y-%m-%d")
             info = f"{date_str} ({_age_label(age_days)})"
             if (now - latest) >= timedelta(days=threshold_days):
-                stale.append((title, date_str, age_days, threshold_days))
+                is_stale = True
         else:
             info = "no episodes yet"
+        if processed > 0:
+            marker = "*"
+        elif is_stale:
+            marker = "S"
+        else:
+            marker = " "
         rows.append((marker, title, info))
     title_width = max(len(row[1]) for row in rows)
     print()
-    print("Latest episode per podcast (* = episodes downloaded/updated this run):")
+    print("Latest episode per podcast (* = updated this run, S = stale):")
     for marker, title, info in rows:
         print(f"  {marker} {title.ljust(title_width)}  {info}")
-    if stale:
-        print()
-        print(f"Stale podcasts: {len(stale)}")
-        for title, date_str, age_days, threshold_days in stale:
-            print(
-                f"  - {title} (last {date_str}, {_age_label(age_days)}, "
-                f"threshold {threshold_days}d)"
-            )
 
 
 def _age_label(days: int) -> str:
