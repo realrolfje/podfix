@@ -887,11 +887,10 @@ def _report_stale_public_files(
             continue
         expected_files.add((config.public_root_dir / public_media_file).resolve())
 
-    candidate_roots = [config.public_dir]
-    if config.legacy_root:
-        candidate_roots.append(config.public_media_root_dir)
-    else:
-        candidate_roots.append(config.public_media_root_dir / config.slug)
+    candidate_roots = [
+        config.public_dir,
+        config.public_media_root_dir / config.slug,
+    ]
 
     seen: set[Path] = set()
     for root in candidate_roots:
@@ -1122,8 +1121,6 @@ def _resolved_mode(metadata: dict[str, Any]) -> str:
 
 
 def _cleanup_legacy_root_public(config: AppConfig) -> None:
-    if any(podcast.legacy_root for podcast in config.podcasts):
-        return
     for name in ("feed.xml", "episodes", "images"):
         path = config.public_dir / name
         if path.is_file():

@@ -58,7 +58,6 @@ class PodcastConfig:
     http: HTTPConfig
     ffmpeg: FFMpegConfig
     stale_threshold_days: int = DEFAULT_STALE_THRESHOLD_DAYS
-    legacy_root: bool = False
 
     @property
     def data_dir(self) -> Path:
@@ -70,20 +69,14 @@ class PodcastConfig:
 
     @property
     def state_file(self) -> Path:
-        if self.legacy_root:
-            return self.data_dir / "state.json"
         return self.state_dir / f"{self.slug}.json"
 
     @property
     def downloads_dir(self) -> Path:
-        if self.legacy_root:
-            return self.data_dir / "downloads"
         return self.data_dir / "downloads" / self.slug
 
     @property
     def cache_dir(self) -> Path:
-        if self.legacy_root:
-            return self.data_dir / "cache"
         return self.data_dir / "cache" / self.slug
 
     @property
@@ -92,8 +85,6 @@ class PodcastConfig:
 
     @property
     def public_dir(self) -> Path:
-        if self.legacy_root:
-            return self.public_root_dir
         return self.public_root_dir / self.slug
 
     @property
@@ -110,8 +101,6 @@ class PodcastConfig:
 
     @property
     def public_episodes_dir(self) -> Path:
-        if self.legacy_root:
-            return self.public_media_root_dir / "episodes"
         return self.public_media_root_dir / self.slug / "episodes"
 
     @property
@@ -124,21 +113,15 @@ class PodcastConfig:
 
     @property
     def public_base_url(self) -> str:
-        if self.legacy_root:
-            return self.base_url
         return f"{self.base_url}/{self.slug}"
 
     @property
     def public_media_base_url(self) -> str:
         token = self.media_path_token.strip("/")
-        if self.legacy_root:
-            return f"{self.base_url}/{token}"
         return f"{self.base_url}/{token}/{self.slug}"
 
     def public_media_relative_path(self, processed_name: str) -> str:
         token = self.media_path_token.strip("/")
-        if self.legacy_root:
-            return f"{token}/episodes/{processed_name}"
         return f"{token}/{self.slug}/episodes/{processed_name}"
 
     def published_episode_filename(self, guid: str) -> str:
@@ -212,45 +195,27 @@ def load_config(path: str | Path) -> AppConfig:
     )
 
     podcasts_raw = raw.get("podcasts")
-    podcasts: list[PodcastConfig]
-    if podcasts_raw:
-        podcasts = [
-            _parse_podcast(
-                item,
-                base_url=base_url,
-                output_dir=output_dir,
-                cache_artwork=default_cache_artwork,
-                badge_artwork=default_badge_artwork,
-                keep_original_downloads=default_keep_original_downloads,
-                max_episodes=default_max_episodes,
-                podcast_mode=default_podcast_mode,
-                media_path_token=media_path_token,
-                http=http,
-                ffmpeg=ffmpeg,
-                stale_threshold_days=default_stale_threshold_days,
-                legacy_root=False,
-            )
-            for item in podcasts_raw
-        ]
-    else:
-        podcasts = [
-            PodcastConfig(
-                slug=_parse_slug(raw.get("slug") or "podcast"),
-                upstream_feed_url=raw["upstream_feed_url"],
-                base_url=base_url,
-                output_dir=output_dir,
-                keep_original_downloads=default_keep_original_downloads,
-                cache_artwork=default_cache_artwork,
-                badge_artwork=default_badge_artwork,
-                max_episodes=default_max_episodes,
-                podcast_mode=default_podcast_mode,
-                media_path_token=media_path_token,
-                http=http,
-                ffmpeg=ffmpeg,
-                stale_threshold_days=default_stale_threshold_days,
-                legacy_root=True,
-            )
-        ]
+    if not podcasts_raw:
+        raise ValueError(
+            "config must define at least one podcast in a [[podcasts]] block"
+        )
+    podcasts = [
+        _parse_podcast(
+            item,
+            base_url=base_url,
+            output_dir=output_dir,
+            cache_artwork=default_cache_artwork,
+            badge_artwork=default_badge_artwork,
+            keep_original_downloads=default_keep_original_downloads,
+            max_episodes=default_max_episodes,
+            podcast_mode=default_podcast_mode,
+            media_path_token=media_path_token,
+            http=http,
+            ffmpeg=ffmpeg,
+            stale_threshold_days=default_stale_threshold_days,
+        )
+        for item in podcasts_raw
+    ]
 
     app_config = AppConfig(
         base_url=base_url,
@@ -404,7 +369,6 @@ def _parse_podcast(
     http: HTTPConfig,
     ffmpeg: FFMpegConfig,
     stale_threshold_days: int,
-    legacy_root: bool,
 ) -> PodcastConfig:
     upstream_feed_url = str(raw["upstream_feed_url"])
     slug_value = raw.get("slug") or upstream_feed_url.rsplit("/", 2)[-2]
@@ -427,7 +391,6 @@ def _parse_podcast(
         stale_threshold_days=_parse_stale_threshold_days(
             raw.get("stale_threshold_days", stale_threshold_days)
         ),
-        legacy_root=legacy_root,
     )
 
 
