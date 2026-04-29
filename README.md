@@ -174,9 +174,10 @@ Important config values:
 - `keep_original_downloads`: if `true`, keep the original downloaded source files for debugging
 - `cache_artwork`: if `true`, artwork is cached locally without modification
 - `badge_artwork`: if `true`, artwork is cached locally and stamped with a blue `COMPRESSED` badge
-- `max_episodes`: default number of episodes to retain in each generated feed and show page; set `"unlimited"` to keep all synced episodes
+- `max_episodes`: default number of episodes to retain in each generated feed and show page; set `"unlimited"` to keep all synced episodes. If omitted, all synced episodes are kept.
 - `podcast_mode`: default mode for podcasts that do not override it
 - `media_path_token`: secret path segment used for public episode MP3 URLs; default is `media-change-me`, so set a hard-to-guess value in your real config
+- `stale_threshold_days`: number of days without a new episode before a feed is flagged as stale (`S`) in the run summary. Defaults to `7`. Override per-podcast for monthly shows (e.g. `30`) or completed series (e.g. `365`).
 - `[http].basic_auth_username` and `[http].basic_auth_password`: credentials used by `podfix serve`; defaults are `podfix` / `change-me`, so change them in your real config
 - `[[podcasts]]`: array of podcast entries in the same TOML file
 - `slug`: URL path segment and output folder name for that podcast
@@ -184,7 +185,8 @@ Important config values:
 
 Per-podcast overrides:
 
-- Each `[[podcasts]]` entry can override `max_episodes`, `podcast_mode`, `cache_artwork`, `badge_artwork`, and `keep_original_downloads`.
+- Each `[[podcasts]]` entry can override `max_episodes`, `podcast_mode`, `cache_artwork`, `badge_artwork`, `keep_original_downloads`, and `stale_threshold_days`.
+- Each `[[podcasts]]` entry can also set `episode_title_include` to a case-insensitive regex applied to episode titles after feed parsing, useful for shared feeds that contain multiple series.
 - Each `[[podcasts]]` entry can also override audio processing with an inline `ffmpeg = { ... }` table. Only the keys you specify are changed for that show; the rest inherit from the top-level `[ffmpeg]` settings.
 
 Example per-show `ffmpeg` override:
@@ -218,6 +220,12 @@ Audio tuning:
 
 ## Usage
 
+All commands accept a top-level `--log-level` (default `INFO`, e.g. `DEBUG`, `WARNING`):
+
+```bash
+./podfix.sh --log-level DEBUG sync --config config.toml
+```
+
 Sync new items:
 
 ```bash
@@ -232,10 +240,11 @@ Process every missing episode in the selected feed window for one podcast:
 
 For a full catch-up run on a serialized archive, combine `--all-episodes` with `podcast_mode = "story"` and `max_episodes = "unlimited"` for that show.
 
-Sync only one show:
+Limit a run to one or more shows by repeating `--podcast`:
 
 ```bash
 ./podfix.sh sync --config config.toml --podcast dai-carter
+./podfix.sh sync --config config.toml --podcast dai-carter --podcast alledaagse-vragen
 ```
 
 Sync and delete stale published files that are no longer referenced by state:
@@ -250,7 +259,7 @@ Force a clean rebuild:
 ./podfix.sh rebuild --config config.toml
 ```
 
-Rebuild only one show:
+Rebuild only selected shows (repeatable):
 
 ```bash
 ./podfix.sh rebuild --config config.toml --podcast dai-carter
@@ -264,7 +273,7 @@ Refresh feed, site, artwork, and local URLs without reprocessing audio:
 ./podfix.sh refresh --config config.toml
 ```
 
-Refresh one show only:
+Refresh selected shows only (repeatable):
 
 ```bash
 ./podfix.sh refresh --config config.toml --podcast dai-carter

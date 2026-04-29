@@ -17,13 +17,8 @@ from .service import SyncResult, sync
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="podcast-proxy")
+    parser = argparse.ArgumentParser(prog="podfix")
     parser.add_argument("--log-level", default="INFO")
-    parser.add_argument(
-        "--clean-stale",
-        action="store_true",
-        help="delete stale published files that are no longer referenced by state",
-    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     sync_parser = subparsers.add_parser("sync")
