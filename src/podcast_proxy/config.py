@@ -39,6 +39,9 @@ class FFMpegConfig:
     loudness_range_target: float = 11.0
 
 
+DEFAULT_STALE_THRESHOLD_DAYS = 7
+
+
 @dataclass(slots=True)
 class PodcastConfig:
     slug: str
@@ -54,6 +57,7 @@ class PodcastConfig:
     media_path_token: str
     http: HTTPConfig
     ffmpeg: FFMpegConfig
+    stale_threshold_days: int = DEFAULT_STALE_THRESHOLD_DAYS
     legacy_root: bool = False
 
     @property
@@ -203,6 +207,9 @@ def load_config(path: str | Path) -> AppConfig:
     default_keep_original_downloads = bool(raw.get("keep_original_downloads", False))
     default_max_episodes = _parse_max_episodes(raw.get("max_episodes"))
     default_podcast_mode = _parse_podcast_mode(raw.get("podcast_mode", "auto"))
+    default_stale_threshold_days = _parse_stale_threshold_days(
+        raw.get("stale_threshold_days", DEFAULT_STALE_THRESHOLD_DAYS)
+    )
 
     podcasts_raw = raw.get("podcasts")
     podcasts: list[PodcastConfig]
@@ -220,6 +227,7 @@ def load_config(path: str | Path) -> AppConfig:
                 media_path_token=media_path_token,
                 http=http,
                 ffmpeg=ffmpeg,
+                stale_threshold_days=default_stale_threshold_days,
                 legacy_root=False,
             )
             for item in podcasts_raw
@@ -239,6 +247,7 @@ def load_config(path: str | Path) -> AppConfig:
                 media_path_token=media_path_token,
                 http=http,
                 ffmpeg=ffmpeg,
+                stale_threshold_days=default_stale_threshold_days,
                 legacy_root=True,
             )
         ]
@@ -394,6 +403,7 @@ def _parse_podcast(
     media_path_token: str,
     http: HTTPConfig,
     ffmpeg: FFMpegConfig,
+    stale_threshold_days: int,
     legacy_root: bool,
 ) -> PodcastConfig:
     upstream_feed_url = str(raw["upstream_feed_url"])
@@ -414,6 +424,9 @@ def _parse_podcast(
         media_path_token=media_path_token,
         http=http,
         ffmpeg=_ffmpeg_overrides(ffmpeg, raw.get("ffmpeg")),
+        stale_threshold_days=_parse_stale_threshold_days(
+            raw.get("stale_threshold_days", stale_threshold_days)
+        ),
         legacy_root=legacy_root,
     )
 
@@ -423,6 +436,20 @@ def _parse_podcast_mode(value: object) -> FeedMode:
     if mode not in {"auto", "news", "story"}:
         raise ValueError("podcast_mode must be one of: auto, news, story")
     return mode
+
+
+def _parse_stale_threshold_days(value: object) -> int:
+    if value is None:
+        return DEFAULT_STALE_THRESHOLD_DAYS
+    try:
+        days = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"stale_threshold_days must be an integer, got {value!r}"
+        ) from exc
+    if days < 1:
+        raise ValueError("stale_threshold_days must be at least 1")
+    return days
 
 
 def _parse_max_episodes(value: object) -> int | None:

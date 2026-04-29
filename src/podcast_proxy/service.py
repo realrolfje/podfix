@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import logging
 from pathlib import Path
@@ -24,6 +25,12 @@ from .utils import sanitize_filename
 LOGGER = logging.getLogger(__name__)
 
 
+@dataclass
+class SyncResult:
+    index_path: Path
+    summaries: list[dict[str, Any]] = field(default_factory=list)
+
+
 def sync(
     config: AppConfig,
     rebuild: bool = False,
@@ -31,7 +38,7 @@ def sync(
     podcast_slugs: list[str] | None = None,
     clean_stale: bool = False,
     process_all_episodes: bool = False,
-) -> Path:
+) -> SyncResult:
     _cleanup_legacy_root_public(config)
     selected_podcasts = _selected_podcasts(config, podcast_slugs)
     summary_by_slug: dict[str, dict[str, Any]] = {}
@@ -47,15 +54,18 @@ def sync(
         )
     summaries: list[dict[str, Any]] = []
     for podcast in config.podcasts:
-        summary = summary_by_slug.get(podcast.slug) or _summary_from_state(
-            podcast,
-            clean_stale=clean_stale,
-        )
-        if summary:
-            summaries.append(summary)
+        processed_summary = summary_by_slug.get(podcast.slug)
+        if processed_summary is not None:
+            processed_summary["processed"] = True
+            summaries.append(processed_summary)
+            continue
+        state_summary = _summary_from_state(podcast, clean_stale=clean_stale)
+        if state_summary:
+            state_summary["processed"] = False
+            summaries.append(state_summary)
     summaries.sort(key=lambda item: str(item.get("title", "")).casefold())
     write_library_index(config, summaries)
-    return config.public_index
+    return SyncResult(index_path=config.public_index, summaries=summaries)
 
 
 def _selected_podcasts(
@@ -491,7 +501,30 @@ def _podcast_summary(
         "feed_url": config.feed_url,
         "index_url": config.index_url,
         "episode_count": len(episode_records),
+        "latest_published": _latest_published_at(episode_records),
+        "stale_threshold_days": config.stale_threshold_days,
     }
+
+
+def _latest_published_at(
+    episode_records: list[dict[str, Any]],
+) -> datetime | None:
+    latest: datetime | None = None
+    for record in episode_records:
+        published = str(record.get("published") or "")
+        if not published:
+            continue
+        try:
+            parsed = parsedate_to_datetime(published)
+        except (TypeError, ValueError, IndexError):
+            continue
+        if parsed is None:
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        if latest is None or parsed > latest:
+            latest = parsed
+    return latest
 
 
 def _normalize_metadata_urls(
