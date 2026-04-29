@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 
 from .artwork import process_artwork
 from .config import AppConfig, PodcastConfig
-from .feed import Episode, cache_artwork, fetch_feed, make_session
+from .feed import Episode, cache_artwork, fetch_feed, make_session, sort_episodes
 from .media import (
     download_media,
     ensure_public_episode_path,
@@ -1085,17 +1085,33 @@ def _renderable_records(
     resolved_mode: str,
     max_episodes: int | None,
 ) -> list[dict[str, Any]]:
-    ordered = sorted(
-        (dict(record) for record in records),
-        key=_record_sort_key,
-        reverse=(resolved_mode == "news"),
-    )
+    items = [dict(record) for record in records]
+    if items and all(_record_has_season_and_episode(item) for item in items):
+        key = _record_key_by_season
+    else:
+        key = _record_key_by_date
+    ordered = sorted(items, key=key, reverse=(resolved_mode == "news"))
     if max_episodes is not None:
         return ordered[:max_episodes]
     return ordered
 
 
-def _record_sort_key(record: dict[str, Any]) -> tuple[int, str]:
+def _record_has_season_and_episode(record: dict[str, Any]) -> bool:
+    return (
+        record.get("season_number") is not None
+        and record.get("episode_number") is not None
+    )
+
+
+def _record_key_by_season(record: dict[str, Any]) -> tuple:
+    return (
+        int(record.get("season_number") or 0),
+        int(record.get("episode_number") or 0),
+        _record_date_iso(record),
+    )
+
+
+def _record_key_by_date(record: dict[str, Any]) -> tuple:
     published = str(record.get("published", ""))
     if not published:
         return (0, str(record.get("guid", "")))
@@ -1105,14 +1121,18 @@ def _record_sort_key(record: dict[str, Any]) -> tuple[int, str]:
         return (0, published)
 
 
+def _record_date_iso(record: dict[str, Any]) -> str:
+    published = str(record.get("published", ""))
+    if not published:
+        return ""
+    try:
+        return parsedate_to_datetime(published).isoformat()
+    except (TypeError, ValueError, IndexError):
+        return published
+
+
 def _sort_episodes(episodes: list[Episode], resolved_mode: str) -> list[Episode]:
-    return sorted(
-        episodes,
-        key=lambda episode: _record_sort_key(
-            {"published": episode.published, "guid": episode.guid}
-        ),
-        reverse=(resolved_mode == "news"),
-    )
+    return sort_episodes(episodes, resolved_mode)
 
 
 def _resolved_mode(metadata: dict[str, Any]) -> str:
