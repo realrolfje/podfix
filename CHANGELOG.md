@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- `sync --all-episodes` can process every missing episode in the selected feed window.
+- Shared configuration now includes Echt Gebeurd, Cocainekoorts, De Zaak XL, and Argos feeds.
+- RSS feeds, HTML pages, and state now preserve and backfill Apple episode metadata including season, episode, episode type, and duration.
+
+### Changed
+
+- Show pages now render all published episodes available in state.
+- `run-sync.sh` now requests stale published file cleanup during sync.
+
+### Fixed
+
+- Story podcast ordering now honors upstream season and episode metadata for both RSS feeds and HTML pages.
+
 ## v0.1.0 - 2026-04-05
 
 ### Added
@@ -25,4 +42,3 @@ All notable changes to this project will be documented in this file.
 - Missing published artwork files are refreshed from feed data or cleared from stale state.
 - Empty-state search messages now show correctly when no podcasts or episodes match.
 - Show pages no longer expose a confusing `Open RSS` action; only `Copy RSS Link` remains.
-- Story podcast ordering now honors upstream season and episode metadata for both RSS feeds and HTML pages.
