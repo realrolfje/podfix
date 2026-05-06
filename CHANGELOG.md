@@ -25,3 +25,4 @@ All notable changes to this project will be documented in this file.
 - Missing published artwork files are refreshed from feed data or cleared from stale state.
 - Empty-state search messages now show correctly when no podcasts or episodes match.
 - Show pages no longer expose a confusing `Open RSS` action; only `Copy RSS Link` remains.
+- Story podcast ordering now honors upstream season and episode metadata for both RSS feeds and HTML pages.

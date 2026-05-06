@@ -95,7 +95,10 @@ def fetch_feed(
     episodes = [_entry_to_episode(entry) for entry in entries if _has_enclosure(entry)]
     episodes = _filter_episodes(episodes, config)
     resolved_mode = _resolve_podcast_mode(feed, config.podcast_mode)
-    episodes.sort(key=_sort_key, reverse=(resolved_mode == "news"))
+    episodes.sort(
+        key=lambda episode: _sort_key(episode, resolved_mode),
+        reverse=(resolved_mode == "news"),
+    )
 
     metadata = {
         "title": feed.get("title", "Podcast Proxy"),
@@ -279,13 +282,33 @@ def _kind_from_url(url: str) -> str:
     return "audio"
 
 
-def _sort_key(episode: Episode) -> tuple[int, str]:
-    if not episode.published:
-        return (0, episode.guid)
+def _sort_key(episode: Episode, resolved_mode: str) -> tuple[object, ...]:
+    if resolved_mode == "story":
+        published_key = _published_sort_key(episode.published, episode.guid)
+        season = episode.season_number
+        episode_number = episode.episode_number
+        if season is not None:
+            return (
+                0,
+                season,
+                published_key,
+                0 if episode_number is not None else 1,
+                episode_number or 0,
+                episode.guid,
+            )
+        if episode_number is not None:
+            return (1, 0, published_key, 0, episode_number, episode.guid)
+        return (2, 0, published_key, 1, 0, episode.guid)
+    return _published_sort_key(episode.published, episode.guid)
+
+
+def _published_sort_key(published: str, guid: str) -> tuple[int, str]:
+    if not published:
+        return (0, guid)
     try:
-        return (1, parsedate_to_datetime(episode.published).isoformat())
+        return (1, parsedate_to_datetime(published).isoformat())
     except (TypeError, ValueError, IndexError):
-        return (0, episode.published)
+        return (0, published)
 
 
 def _filter_episodes(

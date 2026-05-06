@@ -18,14 +18,95 @@ from podcast_proxy.service import (
     _normalize_record_urls,
     _episodes_to_process,
     _prepare_episode_state_for_render,
+    _renderable_records,
     _report_stale_public_files,
     _rebuild_episode_artwork,
+    _sort_episodes,
     _sync_podcast,
 )
 from podcast_proxy.state import StateStore
 
 
 class RebuildImagesTests(unittest.TestCase):
+    def test_story_renderable_records_group_by_season_before_publish_date(self) -> None:
+        records = [
+            {
+                "guid": "s3e1",
+                "title": "Season 3 Episode 1",
+                "published": "Sat, 25 Jan 2025 05:00:00 +0000",
+                "season_number": 3,
+                "episode_number": 1,
+            },
+            {
+                "guid": "s1e10",
+                "title": "Season 1 Episode 10",
+                "published": "Tue, 25 Mar 2025 21:04:20 +0000",
+                "season_number": 1,
+                "episode_number": 10,
+            },
+            {
+                "guid": "s1e8",
+                "title": "Season 1 Episode 8",
+                "published": "Tue, 11 Feb 2025 05:00:00 +0000",
+                "season_number": 1,
+                "episode_number": 8,
+            },
+            {
+                "guid": "s2e1",
+                "title": "Season 2 Episode 1",
+                "published": "Tue, 08 Oct 2024 04:00:00 +0000",
+                "season_number": 2,
+                "episode_number": 1,
+            },
+        ]
+
+        ordered = _renderable_records(records, resolved_mode="story", max_episodes=None)
+
+        self.assertEqual(
+            [record["guid"] for record in ordered],
+            ["s1e8", "s1e10", "s2e1", "s3e1"],
+        )
+
+    def test_story_sort_uses_episode_number_to_break_same_publish_date(self) -> None:
+        episodes = [
+            Episode(
+                guid="s2e2",
+                title="Season 2 Episode 2",
+                description="",
+                published="Tue, 08 Oct 2024 04:00:00 +0000",
+                enclosure_url="https://upstream.example.com/2.mp3",
+                enclosure_type="audio/mpeg",
+                source_kind="audio",
+                slug="s2e2",
+                author=None,
+                original_link=None,
+                image_url=None,
+                explicit="false",
+                season_number=2,
+                episode_number=2,
+            ),
+            Episode(
+                guid="s2e1",
+                title="Season 2 Episode 1",
+                description="",
+                published="Tue, 08 Oct 2024 04:00:00 +0000",
+                enclosure_url="https://upstream.example.com/1.mp3",
+                enclosure_type="audio/mpeg",
+                source_kind="audio",
+                slug="s2e1",
+                author=None,
+                original_link=None,
+                image_url=None,
+                explicit="false",
+                season_number=2,
+                episode_number=1,
+            ),
+        ]
+
+        ordered = _sort_episodes(episodes, resolved_mode="story")
+
+        self.assertEqual([episode.guid for episode in ordered], ["s2e1", "s2e2"])
+
     def test_sync_processes_one_missing_episode_by_default(self) -> None:
         episodes = [
             Episode(

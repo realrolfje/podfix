@@ -999,11 +999,10 @@ def _eligible_feed_window(
     resolved_mode: str,
     max_episodes: int | None,
 ) -> list[Episode]:
-    if resolved_mode == "story" and max_episodes is not None:
-        return episodes[:max_episodes]
-    if resolved_mode == "news" and max_episodes is not None:
-        return episodes[:max_episodes]
-    return episodes
+    ordered_episodes = _sort_episodes(episodes, resolved_mode)
+    if max_episodes is not None:
+        return ordered_episodes[:max_episodes]
+    return ordered_episodes
 
 
 def _ordered_records(
@@ -1050,7 +1049,7 @@ def _renderable_records(
 ) -> list[dict[str, Any]]:
     ordered = sorted(
         (dict(record) for record in records),
-        key=_record_sort_key,
+        key=lambda record: _record_sort_key(record, resolved_mode),
         reverse=(resolved_mode == "news"),
     )
     if max_episodes is not None:
@@ -1058,7 +1057,28 @@ def _renderable_records(
     return ordered
 
 
-def _record_sort_key(record: dict[str, Any]) -> tuple[int, str]:
+def _record_sort_key(record: dict[str, Any], resolved_mode: str) -> tuple[object, ...]:
+    if resolved_mode == "story":
+        published_key = _published_record_sort_key(record)
+        season = _optional_int(record.get("season_number"))
+        episode = _optional_int(record.get("episode_number"))
+        guid = str(record.get("guid", ""))
+        if season is not None:
+            return (
+                0,
+                season,
+                published_key,
+                0 if episode is not None else 1,
+                episode or 0,
+                guid,
+            )
+        if episode is not None:
+            return (1, 0, published_key, 0, episode, guid)
+        return (2, 0, published_key, 1, 0, guid)
+    return _published_record_sort_key(record)
+
+
+def _published_record_sort_key(record: dict[str, Any]) -> tuple[int, str]:
     published = str(record.get("published", ""))
     if not published:
         return (0, str(record.get("guid", "")))
@@ -1072,10 +1092,28 @@ def _sort_episodes(episodes: list[Episode], resolved_mode: str) -> list[Episode]
     return sorted(
         episodes,
         key=lambda episode: _record_sort_key(
-            {"published": episode.published, "guid": episode.guid}
+            {
+                "published": episode.published,
+                "guid": episode.guid,
+                "season_number": episode.season_number,
+                "episode_number": episode.episode_number,
+            },
+            resolved_mode,
         ),
         reverse=(resolved_mode == "news"),
     )
+
+
+def _optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    try:
+        return int(text)
+    except ValueError:
+        return None
 
 
 def _resolved_mode(metadata: dict[str, Any]) -> str:
