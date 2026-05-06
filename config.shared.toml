@@ -180,8 +180,24 @@ slug = "argos-actueel"
 upstream_feed_url = "https://podcast.npo.nl/feed/argos.xml"
 podcast_mode = "news"
 
+[[podcasts]]
+slug = "de-ware-jacob"
+upstream_feed_url = "https://www.omnycontent.com/d/playlist/fdd7ab40-270d-4a1e-a257-acd200da1324/fa67d52c-db50-4fe4-acac-b39a008a1971/69e412a6-fd86-4f2e-b1d7-b39a008a21f6/podcast.rss"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "30-minuten-rauw"
+upstream_feed_url = "https://podcast.npo.nl/feed/30-minuten-rauw.xml"
+podcast_mode = "news"
+
+[[podcasts]]
+slug = "we-love-nederlands"
+upstream_feed_url = "https://www.omnycontent.com/d/playlist/9a879009-9913-4c6a-9792-b2b70034bb74/23cb8585-00db-4955-8e1a-b40400ac9160/7b5af66e-ef15-4c28-ba6c-b40400ac9562/podcast.rss"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
 [http]
-user_agent = "podcast-proxy/0.1"
 timeout_seconds = 30
 retries = 2
 

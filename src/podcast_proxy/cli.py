@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+from datetime import datetime, timedelta, timezone
 import logging
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import os
@@ -11,18 +12,13 @@ import shutil
 from typing import BinaryIO
 from urllib.parse import urlsplit
 
-from .config import load_config
-from .service import sync
+from .config import DEFAULT_STALE_THRESHOLD_DAYS, load_config
+from .service import SyncResult, sync
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="podcast-proxy")
+    parser = argparse.ArgumentParser(prog="podfix")
     parser.add_argument("--log-level", default="INFO")
-    parser.add_argument(
-        "--clean-stale",
-        action="store_true",
-        help="delete stale published files that are no longer referenced by state",
-    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     sync_parser = subparsers.add_parser("sync")
@@ -97,41 +93,42 @@ def main() -> None:
     args = parser.parse_args()
     logging.basicConfig(
         level=getattr(logging, str(args.log_level).upper(), logging.INFO),
-        format="%(levelname)s %(message)s",
+        format="%(asctime)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     if args.command == "sync":
         config = load_config(args.config)
-        index_path = sync(
+        result = sync(
             config,
             rebuild=False,
             podcast_slugs=args.podcasts,
             clean_stale=args.clean_stale,
             process_all_episodes=args.all_episodes,
         )
-        print(index_path)
+        _print_run_summary(result)
         return
 
     if args.command == "rebuild":
         config = load_config(args.config)
-        index_path = sync(
+        result = sync(
             config,
             rebuild=True,
             podcast_slugs=args.podcasts,
             clean_stale=args.clean_stale,
         )
-        print(index_path)
+        _print_run_summary(result)
         return
 
     if args.command == "refresh":
         config = load_config(args.config)
-        index_path = sync(
+        result = sync(
             config,
             rebuild_images=True,
             podcast_slugs=args.podcasts,
             clean_stale=args.clean_stale,
         )
-        print(index_path)
+        _print_run_summary(result)
         return
 
     if args.command == "rebuild-images":
@@ -139,13 +136,13 @@ def main() -> None:
             "'rebuild-images' is deprecated; use 'refresh' instead"
         )
         config = load_config(args.config)
-        index_path = sync(
+        result = sync(
             config,
             rebuild_images=True,
             podcast_slugs=args.podcasts,
             clean_stale=args.clean_stale,
         )
-        print(index_path)
+        _print_run_summary(result)
         return
 
     if args.command == "serve":
@@ -350,6 +347,59 @@ def _public_media_relative_path(
     if not path.lower().endswith(".mp3"):
         return None
     return path
+
+
+def _print_run_summary(result: SyncResult) -> None:
+    summaries = result.summaries
+    now = datetime.now(timezone.utc)
+    total_processed = sum(int(item.get("processed_episodes") or 0) for item in summaries)
+    podcasts_with_work = sum(
+        1 for item in summaries if int(item.get("processed_episodes") or 0) > 0
+    )
+    total = len(summaries)
+    print(
+        f"Downloaded/updated {total_processed} episode{'s' if total_processed != 1 else ''} "
+        f"across {podcasts_with_work} of {total} podcast{'s' if total != 1 else ''}."
+    )
+    if not summaries:
+        return
+    rows: list[tuple[str, str, str]] = []
+    for item in summaries:
+        title = str(item.get("title") or item.get("slug") or "<unknown>")
+        processed = int(item.get("processed_episodes") or 0)
+        latest = item.get("latest_published")
+        threshold_days = int(
+            item.get("stale_threshold_days") or DEFAULT_STALE_THRESHOLD_DAYS
+        )
+        is_stale = False
+        if isinstance(latest, datetime):
+            age_days = (now - latest).days
+            date_str = latest.strftime("%Y-%m-%d")
+            info = f"{date_str} ({_age_label(age_days)})"
+            if (now - latest) >= timedelta(days=threshold_days):
+                is_stale = True
+        else:
+            info = "no episodes yet"
+        if processed > 0:
+            marker = "*"
+        elif is_stale:
+            marker = "S"
+        else:
+            marker = " "
+        rows.append((marker, title, info))
+    title_width = max(len(row[1]) for row in rows)
+    print()
+    print("Latest episode per podcast (* = updated this run, S = stale):")
+    for marker, title, info in rows:
+        print(f"  {marker} {title.ljust(title_width)}  {info}")
+
+
+def _age_label(days: int) -> str:
+    if days <= 0:
+        return "today"
+    if days == 1:
+        return "1 day ago"
+    return f"{days} days ago"
 
 
 if __name__ == "__main__":

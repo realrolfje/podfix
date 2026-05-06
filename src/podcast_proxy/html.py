@@ -32,7 +32,7 @@ def write_podcast_index(
     if not items_markup:
         items_markup = "<p class=\"empty\">No episodes published yet.</p>"
 
-    home_href = "../" if not config.legacy_root else "./"
+    home_href = "../"
     html = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -44,6 +44,7 @@ def write_podcast_index(
 </head>
 <body>
   <main>
+    <p class="eyebrow"><a href="{escape(home_href)}">&larr; All shows</a></p>
     <section class="hero">
       {mode_badge}
       <div>{image_markup}</div>

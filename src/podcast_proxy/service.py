@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import logging
 from pathlib import Path
@@ -9,7 +10,7 @@ from urllib.parse import urlsplit
 
 from .artwork import process_artwork
 from .config import AppConfig, PodcastConfig
-from .feed import Episode, cache_artwork, fetch_feed, make_session
+from .feed import Episode, cache_artwork, fetch_feed, make_session, sort_episodes
 from .media import (
     download_media,
     ensure_public_episode_path,
@@ -24,6 +25,12 @@ from .utils import sanitize_filename
 LOGGER = logging.getLogger(__name__)
 
 
+@dataclass
+class SyncResult:
+    index_path: Path
+    summaries: list[dict[str, Any]] = field(default_factory=list)
+
+
 def sync(
     config: AppConfig,
     rebuild: bool = False,
@@ -31,7 +38,7 @@ def sync(
     podcast_slugs: list[str] | None = None,
     clean_stale: bool = False,
     process_all_episodes: bool = False,
-) -> Path:
+) -> SyncResult:
     _cleanup_legacy_root_public(config)
     selected_podcasts = _selected_podcasts(config, podcast_slugs)
     summary_by_slug: dict[str, dict[str, Any]] = {}
@@ -47,15 +54,16 @@ def sync(
         )
     summaries: list[dict[str, Any]] = []
     for podcast in config.podcasts:
-        summary = summary_by_slug.get(podcast.slug) or _summary_from_state(
-            podcast,
-            clean_stale=clean_stale,
-        )
-        if summary:
-            summaries.append(summary)
+        processed_summary = summary_by_slug.get(podcast.slug)
+        if processed_summary is not None:
+            summaries.append(processed_summary)
+            continue
+        state_summary = _summary_from_state(podcast, clean_stale=clean_stale)
+        if state_summary:
+            summaries.append(state_summary)
     summaries.sort(key=lambda item: str(item.get("title", "")).casefold())
     write_library_index(config, summaries)
-    return config.public_index
+    return SyncResult(index_path=config.public_index, summaries=summaries)
 
 
 def _selected_podcasts(
@@ -134,6 +142,7 @@ def _sync_podcast(
     state_store = StateStore(config.state_file)
     state = state_store.load()
     enclosure_url_version = _next_enclosure_url_version(state, rebuild=rebuild)
+    processed_episodes = 0
 
     session = make_session(config)
     snapshot = fetch_feed(session, config, state)
@@ -188,7 +197,9 @@ def _sync_podcast(
             )
             write_feed(config, metadata, episode_records)
             write_podcast_index(config, metadata, episode_records)
-            return _podcast_summary(config, metadata, episode_records)
+            summary = _podcast_summary(config, metadata, episode_records)
+            summary["processed_episodes"] = processed_episodes
+            return summary
 
     metadata = _process_metadata_artwork(session, config, dict(snapshot.metadata))
 
@@ -268,6 +279,7 @@ def _sync_podcast(
                 "enclosure_length": public_path.stat().st_size,
                 "enclosure_type": "audio/mpeg",
             }
+            processed_episodes += 1
         except Exception as exc:  # noqa: BLE001
             LOGGER.error("episode failed for %s: %s (%s)", config.slug, episode.title, exc)
             if previous:
@@ -337,7 +349,9 @@ def _sync_podcast(
         "episodes": next_episode_state,
     }
     state_store.save(next_state)
-    return _podcast_summary(config, metadata, ordered_records)
+    summary = _podcast_summary(config, metadata, ordered_records)
+    summary["processed_episodes"] = processed_episodes
+    return summary
 
 
 def _process_metadata_artwork(
@@ -491,7 +505,31 @@ def _podcast_summary(
         "feed_url": config.feed_url,
         "index_url": config.index_url,
         "episode_count": len(episode_records),
+        "latest_published": _latest_published_at(episode_records),
+        "stale_threshold_days": config.stale_threshold_days,
+        "processed_episodes": 0,
     }
+
+
+def _latest_published_at(
+    episode_records: list[dict[str, Any]],
+) -> datetime | None:
+    latest: datetime | None = None
+    for record in episode_records:
+        published = str(record.get("published") or "")
+        if not published:
+            continue
+        try:
+            parsed = parsedate_to_datetime(published)
+        except (TypeError, ValueError, IndexError):
+            continue
+        if parsed is None:
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        if latest is None or parsed > latest:
+            latest = parsed
+    return latest
 
 
 def _normalize_metadata_urls(
@@ -854,11 +892,10 @@ def _report_stale_public_files(
             continue
         expected_files.add((config.public_root_dir / public_media_file).resolve())
 
-    candidate_roots = [config.public_dir]
-    if config.legacy_root:
-        candidate_roots.append(config.public_media_root_dir)
-    else:
-        candidate_roots.append(config.public_media_root_dir / config.slug)
+    candidate_roots = [
+        config.public_dir,
+        config.public_media_root_dir / config.slug,
+    ]
 
     seen: set[Path] = set()
     for root in candidate_roots:
@@ -1089,19 +1126,7 @@ def _published_record_sort_key(record: dict[str, Any]) -> tuple[int, str]:
 
 
 def _sort_episodes(episodes: list[Episode], resolved_mode: str) -> list[Episode]:
-    return sorted(
-        episodes,
-        key=lambda episode: _record_sort_key(
-            {
-                "published": episode.published,
-                "guid": episode.guid,
-                "season_number": episode.season_number,
-                "episode_number": episode.episode_number,
-            },
-            resolved_mode,
-        ),
-        reverse=(resolved_mode == "news"),
-    )
+    return sort_episodes(episodes, resolved_mode)
 
 
 def _optional_int(value: Any) -> int | None:
@@ -1127,8 +1152,6 @@ def _resolved_mode(metadata: dict[str, Any]) -> str:
 
 
 def _cleanup_legacy_root_public(config: AppConfig) -> None:
-    if any(podcast.legacy_root for podcast in config.podcasts):
-        return
     for name in ("feed.xml", "episodes", "images"):
         path = config.public_dir / name
         if path.is_file():

@@ -105,6 +105,7 @@ Accepted values:
 
 - Integer: keep a limited window.
 - `"unlimited"` or `"all"`: keep all synced episodes.
+- Omitted: equivalent to `"unlimited"`.
 
 ### `podcast_mode`
 
@@ -119,6 +120,10 @@ Accepted values:
 ### `media_path_token`
 
 Secret path segment used for public episode MP3 URLs. This affects both `podfix serve` and static hosting such as nginx.
+
+### `stale_threshold_days`
+
+Number of days without a new episode before a feed is flagged as stale (`S`) in the run summary. Must be an integer of at least `1`. Defaults to `7`. Override per podcast for monthly shows (e.g. `30`) or completed series (e.g. `365`).
 
 ### `[http]`
 
@@ -188,6 +193,10 @@ Per-podcast override for the top-level setting.
 Per-podcast override for the top-level setting.
 
 ### `badge_artwork`
+
+Per-podcast override for the top-level setting.
+
+### `stale_threshold_days`
 
 Per-podcast override for the top-level setting.
 

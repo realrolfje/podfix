@@ -4,6 +4,16 @@ base_url = "http://localhost:8080"
 output_dir = "./output"
 media_path_token = "media-change-me"
 
+# Flag a feed as stale in the run summary if no new episodes appeared
+# within this many days (default 7). Override per-podcast by adding
+# `stale_threshold_days = <n>` inside the matching [[podcasts]] block,
+# e.g. 30 for monthly shows or 365 for completed series.
+stale_threshold_days = 7
+
 [http]
 basic_auth_username = "podfix"
 basic_auth_password = "change-me"
+# Sent as the HTTP User-Agent header on outbound feed, media, and
+# artwork requests. The +URL is a contact pointer for podcast hosts
+# who see your traffic — point it at any page describing your setup.
+user_agent = "podfix/0.1 (+https://www.rolfje.com/2026/04/01/the-podcast-problem-fixed/)"
