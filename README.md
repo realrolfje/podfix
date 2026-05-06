@@ -5,8 +5,9 @@
 Are you tired of listening to podcasts WiTH voluME LEVELS ALl oVER tHe PLAce? Does your podcast contain thumping bass that shatters your car windows while you are trying to listen to an interesting interview? Is the podcast maybe video but you only want to listen to the audio in your car without distraction? Then you need `podfix`. 
 
 `podfix` is a self-hosted podcast repair tool for people who are tired of amateur podcasts with muddy audio, uneven speaker volume, and constant reach-for-the-volume-button moments. It downloads episodes, removes video, cleans them up with `ffmpeg`, reduces size, and publishes replacement RSS feeds that point at the processed MP3 files for your listening pleasure.
+## Why Podfix Exists
 
-For the full story behind this tool can be found in [this blogpost on www.rolfje.com](https://www.rolfje.com/2026/04/01/the-podcast-problem-fixed/).
+Podfix started as a personal fix for podcasts with uneven volume, muddy speech, and video-only feeds. The longer write-up is on [rolfje.com](https://www.rolfje.com/2026/04/01/the-podcast-problem-fixed/).
 
 ## DISCLAIMER
 

@@ -72,6 +72,7 @@ def write_podcast_index(
         {items_markup}
       </div>
     </section>
+    {_podfix_footer()}
   </main>
 <script>{_copy_script()}</script>
 </body>
@@ -120,6 +121,7 @@ def write_library_index(app_config: AppConfig, podcasts: list[dict[str, Any]]) -
         {cards}
       </div>
     </section>
+    {_podfix_footer()}
   </main>
 <script>{_copy_script()}</script>
 </body>
@@ -273,6 +275,14 @@ def _mode_badge(label: str, extra_class: str) -> str:
         "News": "mode-badge-news",
     }.get(label, "mode-badge-default")
     return f'<span class="mode-badge {escape(extra_class)} {variant}">{escape(label)}</span>'
+
+
+def _podfix_footer() -> str:
+    return (
+        '<footer class="site-footer">'
+        'Made with <a href="https://www.rolfje.com/2026/04/01/the-podcast-problem-fixed/">Podfix</a>.'
+        "</footer>"
+    )
 
 
 def _shared_css() -> str:
@@ -593,6 +603,18 @@ def _shared_css() -> str:
     .empty {
       margin: 0;
       color: var(--muted);
+    }
+    .site-footer {
+      margin: 22px 0 0;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    .site-footer a {
+      color: inherit;
+      font-weight: 700;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
     }
     .search-empty {
       display: none;

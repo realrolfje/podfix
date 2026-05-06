@@ -4,8 +4,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from podcast_proxy.config import FFMpegConfig, HTTPConfig, PodcastConfig
-from podcast_proxy.html import write_podcast_index
+from podcast_proxy.config import AppConfig, FFMpegConfig, HTTPConfig, PodcastConfig
+from podcast_proxy.html import write_library_index, write_podcast_index
 
 
 class HtmlTests(unittest.TestCase):
@@ -138,6 +138,59 @@ class HtmlTests(unittest.TestCase):
             html = destination.read_text(encoding="utf-8")
 
         self.assertIn(">Play 1:02:03</span>", html)
+
+    def test_write_podcast_index_links_to_podfix_blogpost(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            config = PodcastConfig(
+                slug="serial-show",
+                upstream_feed_url="https://example.com/feed.xml",
+                episode_title_include=None,
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                keep_original_downloads=False,
+                cache_artwork=False,
+                badge_artwork=False,
+                max_episodes=20,
+                podcast_mode="story",
+                media_path_token="media-change-me",
+                http=HTTPConfig(),
+                ffmpeg=FFMpegConfig(),
+            )
+            config.ensure_directories()
+
+            destination = write_podcast_index(
+                config,
+                {
+                    "title": "Serial Show",
+                    "description": "desc",
+                    "resolved_mode": "story",
+                },
+                [],
+            )
+            html = destination.read_text(encoding="utf-8")
+
+        self.assertIn(
+            '<footer class="site-footer">Made with <a href="https://www.rolfje.com/2026/04/01/the-podcast-problem-fixed/">Podfix</a>.</footer>',
+            html,
+        )
+
+    def test_write_library_index_links_to_podfix_blogpost(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app_config = AppConfig(
+                base_url="https://static.example.com/private/podfix/data/published",
+                output_dir=Path(temp_dir),
+                http=HTTPConfig(),
+                podcasts=[],
+            )
+            app_config.ensure_directories()
+
+            destination = write_library_index(app_config, [])
+            html = destination.read_text(encoding="utf-8")
+
+        self.assertIn(
+            '<footer class="site-footer">Made with <a href="https://www.rolfje.com/2026/04/01/the-podcast-problem-fixed/">Podfix</a>.</footer>',
+            html,
+        )
 
 
 if __name__ == "__main__":
