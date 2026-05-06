@@ -197,6 +197,12 @@ upstream_feed_url = "https://www.omnycontent.com/d/playlist/9a879009-9913-4c6a-9
 podcast_mode = "story"
 max_episodes = "unlimited"
 
+[[podcasts]]
+slug = "pointer-podcasts"
+upstream_feed_url = "https://podcast.npo.nl/feed/het-escortbedrog.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
 [http]
 timeout_seconds = 30
 retries = 2
