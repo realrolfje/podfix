@@ -47,6 +47,7 @@ max_episodes = "unlimited"
 slug = "bnr-nieuws-vandaag"
 upstream_feed_url = "https://www.omnycontent.com/d/playlist/8257a063-6be9-42fa-b892-acd4013b1255/52ce962c-348e-4072-959d-adc80089fc68/23074c8b-94ff-4fce-99b7-adc80089fc8d/podcast.rss"
 podcast_mode = "news"
+episode_title_include = "^Ochtendnieuws:"
 
 [[podcasts]]
 slug = "de-rolverdeling"
@@ -111,6 +112,12 @@ max_episodes = "unlimited"
 [[podcasts]]
 slug = "onkruid-in-het-paradijs"
 upstream_feed_url = "https://podcast.npo.nl/feed/onkruid-in-het-paradijs.xml"
+podcast_mode = "story"
+max_episodes = "unlimited"
+
+[[podcasts]]
+slug = "over-mijn-lijk"
+upstream_feed_url = "https://podcast.npo.nl/feed/over-mijn-lijk-de-podcast.xml"
 podcast_mode = "story"
 max_episodes = "unlimited"
 
